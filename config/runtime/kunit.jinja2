@@ -139,7 +139,9 @@ cd {src_path}
 
         return results
 
-    def _submit(self, result, node, api):
+    def _submit(self, result, old_node, api):
+        node_id = old_node.get('id')
+        node = api.node.get(node_id)
         # Ensure top-level name is kept the same
         result = result.copy()
         result['node']['name'] = node['name']
