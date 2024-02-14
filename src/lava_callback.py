@@ -44,6 +44,9 @@ def _upload_log(log_parser, job_node, storage):
         os.chmod(log_txt.name, 0o644)
         log_dir = '-'.join((job_node['name'], job_node['id']))
         log_txt.flush()
+        # Do not upload empty file
+        if os.path.getsize(log_txt.name) == 0:
+            return None
         return storage.upload_single((log_txt.name, 'log.txt'), log_dir)
 
 
@@ -72,19 +75,15 @@ def async_job_submit(api_helper, node_id, job_callback):
 
     log_parser = job_callback.get_log_parser()
     job_result = job_callback.get_job_status()
-    if job_result and job_result == 'pass':
-        storage_config_name = job_callback.get_meta('storage_config_name')
-        storage = _get_storage(storage_config_name)
-        log_txt_url = _upload_log(log_parser, job_node, storage)
+
+    storage_config_name = job_callback.get_meta('storage_config_name')
+    storage = _get_storage(storage_config_name)
+    log_txt_url = _upload_log(log_parser, job_node, storage)
+    if log_txt_url:
         job_node['artifacts']['lava_log'] = log_txt_url
-        hierarchy = job_callback.get_hierarchy(results, job_node)
-        api_helper.submit_results(hierarchy, job_node)
-    else:
-        # As in https://github.com/kernelci/kernelci-api/issues/474
-        # failed LAVA job should not upload empty log file and set result
-        # as 'pass'
-        job_node['result'] = job_result
-        api_helper.api.node.update(job_node)
+    hierarchy = job_callback.get_hierarchy(results, job_node)
+    results['node']['result'] = job_result
+    api_helper.submit_results(hierarchy, job_node)
 
 
 @app.post('/node/<node_id>')
