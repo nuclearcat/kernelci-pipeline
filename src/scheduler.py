@@ -119,6 +119,26 @@ class Scheduler(Service):
                 self.log.error(err_msg)
             return
 
+        # Docker might return None if failed to find image on hub and locally
+        if running_job is None:
+            self.log.error(' '.join([
+                node['id'],
+                runtime.config.name,
+                platform.name,
+                job_config.name,
+                "Failed to start job",
+            ]))
+            node['state'] = 'done'
+            node['result'] = 'fail'
+            node['data']['error_code'] = 'submit_error'
+            try:
+                self._api.node.update(node)
+            except requests.exceptions.HTTPError as err:
+                err_msg = json.loads(err.response.content).get("detail", [])
+                self.log.error(err_msg)
+            return
+
+
         job_id = str(runtime.get_job_id(running_job))
         node['data']['job_id'] = job_id
 
