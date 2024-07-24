@@ -1,0 +1,649 @@
+_anchors:
+
+  kbuild-gcc-12-arm64-chromeos: &kbuild-gcc-12-arm64-chromeos-job
+    template: kbuild.jinja2
+    kind: kbuild
+    image: kernelci/staging-gcc-12:arm64-kselftest-kernelci
+    params: &kbuild-gcc-12-arm64-chromeos-params
+      arch: arm64
+      compiler: gcc-12
+      cross_compile: 'aarch64-linux-gnu-'
+      cross_compile_compat: 'arm-linux-gnueabihf-'
+      defconfig: 'cros://chromeos-{krev}/{crosarch}/chromiumos-{flavour}.flavour.config'
+      flavour: '{crosarch}-generic'
+      fragments:
+        - lab-setup
+        - arm64-chromebook
+        - CONFIG_MODULE_COMPRESS=n
+        - CONFIG_MODULE_COMPRESS_NONE=y
+    rules: &kbuild-gcc-12-arm64-chromeos-rules
+      tree:
+      - '!android'
+
+  kbuild-gcc-12-x86-chromeos: &kbuild-gcc-12-x86-chromeos-job
+    <<: *kbuild-gcc-12-arm64-chromeos-job
+    image: kernelci/staging-gcc-12:x86-kselftest-kernelci
+    params: &kbuild-gcc-12-x86-chromeos-params
+      arch: x86_64
+      compiler: gcc-12
+      defconfig: 'cros://chromeos-{krev}/{crosarch}/chromeos-{flavour}.flavour.config'
+      flavour: '{crosarch}-generic'
+      fragments:
+        - lab-setup
+        - x86-board
+        - CONFIG_MODULE_COMPRESS=n
+        - CONFIG_MODULE_COMPRESS_NONE=y
+    rules:
+      tree:
+      - '!android'
+
+  min-5_4-rules: &min-5_4-rules
+    min_version:
+      version: 5
+      patchlevel: 4
+
+  min-6_7-rules: &min-6_7-rules
+    min_version:
+      version: 6
+      patchlevel: 7
+
+  max-6_6-rules: &max-6_6-rules
+    <<: *min-5_4-rules
+    max_version:
+      version: 6
+      patchlevel: 6
+
+  tast: &tast-job
+    template: tast.jinja2
+    kind: job
+    rules: *min-5_4-rules
+    kcidb_test_suite: tast
+
+  tast-basic: &tast-basic-job
+    <<: *tast-job
+    params:
+      tests:
+        - platform.CheckDiskSpace
+        - platform.TPMResponsive
+
+  tast-decoder-chromestack: &tast-decoder-chromestack-job
+    <<: *tast-job
+    params: &tast-decoder-chromestack-params
+      tests:
+        - video.ChromeStackDecoder.*
+        - video.ChromeStackDecoderVerification.*
+      excluded_tests:
+        # Those always fail on all platforms
+        - video.ChromeStackDecoderVerification.hevc_main
+        - video.ChromeStackDecoderVerification.vp9_0_svc
+
+  tast-decoder-v4l2-sf-h264: &tast-decoder-v4l2-sf-h264-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateful_h264_*
+
+  tast-decoder-v4l2-sf-hevc: &tast-decoder-v4l2-sf-hevc-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateful_hevc_*
+
+  tast-decoder-v4l2-sf-vp8: &tast-decoder-v4l2-sf-vp8-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateful_vp8_*
+
+  tast-decoder-v4l2-sf-vp9: &tast-decoder-v4l2-sf-vp9-job
+    <<: *tast-job
+    params: &tast-decoder-v4l2-sf-vp9-params
+      tests:
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group1_*
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group2_*
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group3_*
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group4_*
+      excluded_tests:
+        # Regression in ChromeOS R120, to be re-evaluated on next CrOS upgrade
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group4_sub8x8_sf
+
+  tast-decoder-v4l2-sf-vp9-extra: &tast-decoder-v4l2-sf-vp9-extra-job
+    <<: *tast-job
+    params: &tast-decoder-v4l2-sf-vp9-extra-params
+      tests:
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_level5_*
+
+  tast-decoder-v4l2-sl-av1: &tast-decoder-v4l2-sl-av1-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateless_av1_*
+
+  tast-decoder-v4l2-sl-h264: &tast-decoder-v4l2-sl-h264-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateless_h264_*
+
+  tast-decoder-v4l2-sl-hevc: &tast-decoder-v4l2-sl-hevc-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateless_hevc_*
+
+  tast-decoder-v4l2-sl-vp8: &tast-decoder-v4l2-sl-vp8-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateless_vp8_*
+
+  tast-decoder-v4l2-sl-vp9: &tast-decoder-v4l2-sl-vp9-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateless_vp9_0_group1_*
+        - video.PlatformDecoding.v4l2_stateless_vp9_0_group2_*
+        - video.PlatformDecoding.v4l2_stateless_vp9_0_group3_*
+        - video.PlatformDecoding.v4l2_stateless_vp9_0_group4_*
+
+  tast-decoder-v4l2-sl-vp9-extra: &tast-decoder-v4l2-sl-vp9-extra-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.v4l2_stateless_vp9_0_level5_*
+
+  tast-hardware: &tast-hardware-job
+    <<: *tast-job
+    params:
+      tests:
+        - graphics.HardwareProbe
+        - graphics.KernelConfig
+        - graphics.KernelMemory
+        - hardware.DiskErrors
+        - hardware.SensorAccel
+        - hardware.SensorIioservice
+        - hardware.SensorIioserviceHard
+        - hardware.SensorLight
+        - hardware.SensorPresence
+        - hardware.SensorActivity
+        - health.ProbeSensorInfo
+        - health.DiagnosticsRun.*
+        - health.ProbeAudioHardwareInfo
+        - health.ProbeAudioInfo
+        - health.ProbeBacklightInfo
+        - health.ProbeCPUInfo
+        - health.ProbeFanInfo
+        - inputs.PhysicalKeyboardKernelMode
+
+  tast-kernel: &tast-kernel-job
+    <<: *tast-job
+    params:
+      tests:
+        - kernel.Bloat
+        - kernel.ConfigVerify.chromeos_kernelci
+        - kernel.CPUCgroup
+        - kernel.Cpuidle
+        - kernel.CryptoAPI
+        - kernel.CryptoDigest
+        - kernel.ECDeviceNode
+        - kernel.HighResTimers
+        - kernel.Limits
+        - kernel.PerfCallgraph
+
+  tast-mm-decode: &tast-mm-decode-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.PlatformDecoding.ffmpeg_vaapi_vp9_0_group1_buf
+        - video.PlatformDecoding.ffmpeg_vaapi_vp9_0_group2_buf
+        - video.PlatformDecoding.ffmpeg_vaapi_vp9_0_group3_buf
+        - video.PlatformDecoding.ffmpeg_vaapi_vp9_0_group4_buf
+        - video.PlatformDecoding.ffmpeg_vaapi_vp9_0_level5_0_buf
+        - video.PlatformDecoding.ffmpeg_vaapi_vp9_0_level5_1_buf
+        - video.PlatformDecoding.ffmpeg_vaapi_av1
+        - video.PlatformDecoding.ffmpeg_vaapi_vp8_inter
+        - video.PlatformDecoding.ffmpeg_vaapi_h264_baseline
+        - video.PlatformDecoding.ffmpeg_vaapi_h264_main
+        - video.PlatformDecoding.ffmpeg_vaapi_hevc_main
+        - video.PlatformDecoding.vaapi_vp9_0_group1_buf
+        - video.PlatformDecoding.vaapi_vp9_0_group2_buf
+        - video.PlatformDecoding.vaapi_vp9_0_group3_buf
+        - video.PlatformDecoding.vaapi_vp9_0_group4_buf
+        - video.PlatformDecoding.vaapi_vp9_0_level5_0_buf
+        - video.PlatformDecoding.vaapi_vp9_0_level5_1_buf
+
+  tast-mm-encode: &tast-mm-encode-job
+    <<: *tast-job
+    params:
+      tests:
+        - video.EncodeAccel.h264_1080p_global_vaapi_lock_disabled
+        - video.EncodeAccel.vp8_1080p_global_vaapi_lock_disabled
+        - video.EncodeAccel.vp9_1080p_global_vaapi_lock_disabled
+        - video.EncodeAccelPerf.h264_1080p_global_vaapi_lock_disabled
+        - video.EncodeAccelPerf.vp8_1080p_global_vaapi_lock_disabled
+        - video.EncodeAccelPerf.vp9_1080p_global_vaapi_lock_disabled
+        - video.PlatformEncoding.vaapi_vp8_720
+        - video.PlatformEncoding.vaapi_vp8_720_meet
+        - video.PlatformEncoding.vaapi_vp9_720
+        - video.PlatformEncoding.vaapi_vp9_720_meet
+        - video.PlatformEncoding.vaapi_h264_720
+        - video.PlatformEncoding.vaapi_h264_720_meet
+        - webrtc.MediaRecorderMulti.vp8_vp8_global_vaapi_lock_disabled
+        - webrtc.MediaRecorderMulti.vp8_h264_global_vaapi_lock_disabled
+        - webrtc.MediaRecorderMulti.h264_h264_global_vaapi_lock_disabled
+        - webrtc.RTCPeerConnectionPerf.vp8_hw_multi_vp9_3x3_global_vaapi_lock_disabled
+        - webrtc.RTCPeerConnectionPerf.vp8_hw_multi_vp9_4x4_global_vaapi_lock_disabled
+        - webrtc.RTCPeerConnectionPerf.vp9_hw_multi_vp9_3x3_global_vaapi_lock_disabled
+
+  tast-mm-misc: &tast-mm-misc-job
+    <<: *tast-job
+    params:
+      tests:
+        - camera.Suspend
+        - camera.V4L2
+        - camera.V4L2Compliance
+        - camera.V4L2.certification
+        - camera.V4L2.supported_formats
+        - graphics.Clvk.api_tests
+        - graphics.Clvk.simple_test
+        - graphics.DRM.atomic_test_overlay_upscaling
+        - graphics.DRM.atomic_test_plane_alpha
+        - graphics.DRM.atomic_test_plane_ctm
+        - graphics.DRM.atomic_test_primary_pageflip
+        - graphics.DRM.atomic_test_rgba_primary
+        - graphics.DRM.atomic_test_video_overlay
+        - graphics.DRM.atomic_test_video_underlay
+        - graphics.DRM.dmabuf_test
+        - graphics.DRM.drm_cursor_test
+        - graphics.DRM.gbm_test
+        - graphics.DRM.linear_bo_test
+        - graphics.DRM.mapped_access_perf_test
+        - graphics.DRM.mmap_test
+        - graphics.DRM.null_platform_test
+        - graphics.DRM.swrast_test
+        - graphics.DRM.vk_glow
+        - graphics.DRM.yuv_to_rgb_test
+        - graphics.GLBench
+        - security.GPUSandboxed
+        - video.ImageProcessor.image_processor_unit_test
+        - video.MemCheck.av1_hw
+        - video.PlatformVAAPIUnittest
+
+  tast-perf: &tast-perf-job
+    <<: *tast-job
+    params:
+      tests:
+        - filemanager.UIPerf.directory_list
+        - filemanager.UIPerf.list_apps
+        - ui.DesksAnimationPerf
+        - ui.DragTabInTabletPerf.touch
+        - ui.OverviewWithExpandedDesksBarPerf
+
+  tast-perf-long-duration: &tast-perf-long-duration-job
+    <<: *tast-job
+    params:
+      tests:
+        - filemanager.ZipPerf
+        - storage.WriteZeroPerf
+        - ui.WindowCyclePerf
+        - ui.WindowResizePerf
+        - ui.BubbleLauncherAnimationPerf
+        - ui.DragMaximizedWindowPerf
+        - ui.DragTabInClamshellPerf
+        - ui.DragTabInTabletPerf
+
+  tast-platform: &tast-platform-job
+    <<: *tast-job
+    params:
+      tests:
+        - platform.CheckDiskSpace
+        - platform.CheckProcesses
+        - platform.CheckTracefsInstances
+        - platform.CrosDisks
+        - platform.CrosDisksArchive
+        - platform.CrosDisksFilesystem
+        - platform.CrosDisksFormat
+        - platform.CrosDisksRename
+        - platform.CrosDisksSSHFS
+        - platform.CrosID
+        - platform.DMVerity
+        - platform.DumpVPDLog
+        - platform.Firewall
+        - platform.LocalPerfettoTBMTracedProbes
+        - platform.Mtpd
+        - platform.TPMResponsive
+        - storage.HealthInfo
+        - storage.LowPowerStateResidence
+
+  tast-power: &tast-power-job
+    <<: *tast-job
+    params:
+      tests:
+        - power.CheckStatus
+        - power.CpufreqConf
+        - power.UtilCheck
+        - typec.Basic
+
+  tast-sound: &tast-sound-job
+    <<: *tast-job
+    params:
+      tests:
+        - audio.AloopLoadedFixture
+        - audio.AloopLoadedFixture.stereo
+        - audio.ALSAConformance
+        - audio.BrowserShellAudioToneCheck
+        - audio.CheckingAudioFormats
+        - audio.CrasFeatures
+        - audio.CrasPlay
+        - audio.CrasRecord
+        - audio.CrasRecordQuality
+        - audio.DevicePlay
+        - audio.DevicePlay.unstable_model
+        - audio.DeviceRecord
+        - audio.UCMSequences.section_device
+        - audio.UCMSequences.section_modifier
+        - audio.UCMSequences.section_verb
+
+  tast-ui: &tast-ui-job
+    <<: *tast-job
+    params:
+      tests:
+        - ui.DesktopControl
+        - ui.HotseatAnimation.non_overflow_shelf
+        - ui.HotseatAnimation.non_overflow_shelf_lacros
+        - ui.HotseatAnimation.overflow_shelf
+        - ui.HotseatAnimation.overflow_shelf_lacros
+        - ui.HotseatAnimation.shelf_with_navigation_widget
+        - ui.HotseatAnimation.shelf_with_navigation_widget_lacros
+        - ui.WindowControl
+
+  v4l2-decoder-conformance: &v4l2-decoder-conformance-job
+    template: 'v4l2-decoder-conformance.jinja2'
+    kind: job
+    params: &v4l2-decoder-conformance-params
+      nfsroot: 'https://storage.kernelci.org/images/rootfs/debian/bookworm-gst-fluster/20240703.0/{debarch}/'
+      job_timeout: 30
+      videodec_parallel_jobs: 1
+      videodec_timeout: 90
+    rules:
+      tree:
+        - mainline
+        - next
+        - collabora-chromeos-kernel
+        - media
+    kcidb_test_suite: fluster.v4l2
+
+  watchdog-reset: &watchdog-reset-job
+    template: watchdog-reset.jinja2
+    kind: job
+    params: &watchdog-reset-job-params
+      bl_message: 'coreboot-'
+      wdt_dev: 'watchdog0'
+    kcidb_test_suite: kernelci_watchdog_reset
+
+jobs:
+
+  baseline-arm64-mediatek: &baseline-job
+    template: baseline.jinja2
+    kind: job
+    kcidb_test_suite: boot
+
+  baseline-arm64-qualcomm: *baseline-job
+
+  baseline-nfs-arm64-mediatek: &baseline-nfs-job
+    template: baseline.jinja2
+    kind: job
+    params:
+      boot_commands: nfs
+      nfsroot: http://storage.kernelci.org/images/rootfs/debian/bookworm/20240313.0/{debarch}
+    kcidb_test_suite: boot.nfs
+
+  baseline-nfs-arm64-qualcomm: *baseline-nfs-job
+  baseline-nfs-x86-amd: *baseline-nfs-job
+  baseline-nfs-x86-intel: *baseline-nfs-job
+  baseline-x86-amd: *baseline-job
+  baseline-x86-amd-staging: *baseline-job
+  baseline-x86-intel: *baseline-job
+
+  kbuild-gcc-12-arm64-chromebook:
+    <<: *kbuild-gcc-12-arm64-chromeos-job
+    params:
+      <<: *kbuild-gcc-12-arm64-chromeos-params
+      cross_compile_compat:
+      defconfig: defconfig
+
+  kbuild-gcc-12-arm64-chromeos-mediatek:
+    <<: *kbuild-gcc-12-arm64-chromeos-job
+    params:
+      <<: *kbuild-gcc-12-arm64-chromeos-params
+      flavour: mediatek
+    rules:
+      <<: *kbuild-gcc-12-arm64-chromeos-rules
+      min_version:
+        version: 6
+        patchlevel: 1
+
+  kbuild-gcc-12-arm64-chromeos-qualcomm:
+    <<: *kbuild-gcc-12-arm64-chromeos-job
+    params:
+      <<: *kbuild-gcc-12-arm64-chromeos-params
+      flavour: qualcomm
+
+  kbuild-gcc-12-x86-chromeos-intel:
+    <<: *kbuild-gcc-12-x86-chromeos-job
+    params:
+      <<: *kbuild-gcc-12-x86-chromeos-params
+      flavour: intel-pineview
+
+  kbuild-gcc-12-x86-chromeos-amd:
+    <<: *kbuild-gcc-12-x86-chromeos-job
+    params:
+      <<: *kbuild-gcc-12-x86-chromeos-params
+      flavour: amd-stoneyridge
+
+  kselftest-acpi:
+    template: kselftest.jinja2
+    kind: job
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240313.0/{debarch}'
+      collections: acpi
+      job_timeout: 10
+    rules:
+      tree:
+        - collabora-next:for-kernelci
+    kcidb_test_suite: kselftest.acpi
+
+  kselftest-device-error-logs:
+    template: kselftest.jinja2
+    kind: test
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240313.0/{debarch}'
+      collections: devices/error_logs
+      job_timeout: 10
+    rules:
+      tree:
+        - collabora-next:for-kernelci
+    kcidb_test_suite: kselftest.device_error_logs
+
+  tast-basic-arm64-mediatek: *tast-basic-job
+  tast-basic-arm64-qualcomm: *tast-basic-job
+  tast-basic-x86-intel: *tast-basic-job
+  tast-basic-x86-amd: *tast-basic-job
+
+  tast-decoder-chromestack-arm64-mediatek: *tast-decoder-chromestack-job
+
+  tast-decoder-chromestack-arm64-qualcomm:
+    <<: *tast-decoder-chromestack-job
+    rules: *min-6_7-rules
+
+  tast-decoder-chromestack-arm64-qualcomm-pre6_7:
+    <<: *tast-decoder-chromestack-job
+    params:
+      <<: *tast-decoder-chromestack-params
+      excluded_tests:
+        # Platform-independent excluded tests
+        - video.ChromeStackDecoderVerification.hevc_main
+        - video.ChromeStackDecoderVerification.vp9_0_svc
+        # Qualcomm-specific: those always fail with pre-6.7 kernels
+        - video.ChromeStackDecoderVerification.vp9_0_group1_frm_resize
+        - video.ChromeStackDecoderVerification.vp9_0_group1_sub8x8_sf
+    rules: *max-6_6-rules
+
+  tast-decoder-chromestack-x86-intel: *tast-decoder-chromestack-job
+  tast-decoder-chromestack-x86-amd: *tast-decoder-chromestack-job
+
+  tast-decoder-v4l2-sl-av1-arm64-mediatek: *tast-decoder-v4l2-sl-av1-job
+  tast-decoder-v4l2-sl-h264-arm64-mediatek: *tast-decoder-v4l2-sl-h264-job
+  tast-decoder-v4l2-sl-hevc-arm64-mediatek: *tast-decoder-v4l2-sl-hevc-job
+  tast-decoder-v4l2-sl-vp8-arm64-mediatek: *tast-decoder-v4l2-sl-vp8-job
+  tast-decoder-v4l2-sl-vp9-arm64-mediatek: *tast-decoder-v4l2-sl-vp9-job
+
+  tast-decoder-v4l2-sf-h264-arm64-qualcomm: *tast-decoder-v4l2-sf-h264-job
+  tast-decoder-v4l2-sf-hevc-arm64-qualcomm: *tast-decoder-v4l2-sf-hevc-job
+  tast-decoder-v4l2-sf-vp8-arm64-qualcomm: *tast-decoder-v4l2-sf-vp8-job
+
+  tast-decoder-v4l2-sf-vp9-arm64-qualcomm:
+    <<: *tast-decoder-v4l2-sf-vp9-job
+    rules: *min-6_7-rules
+
+  tast-decoder-v4l2-sf-vp9-arm64-qualcomm-pre6_7:
+    <<: *tast-decoder-v4l2-sf-vp9-job
+    params:
+      <<: *tast-decoder-v4l2-sf-vp9-params
+      excluded_tests:
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group1_frm_resize
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group1_sub8x8_sf
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group2_frm_resize
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group2_sub8x8_sf
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group3_frm_resize
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group3_sub8x8_sf
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group4_frm_resize
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_group4_sub8x8_sf
+    rules: *max-6_6-rules
+
+  tast-decoder-v4l2-sf-vp9-extra-arm64-qualcomm:
+    <<: *tast-decoder-v4l2-sf-vp9-extra-job
+    rules: *min-6_7-rules
+
+  tast-decoder-v4l2-sf-vp9-extra-arm64-qualcomm-pre6_7:
+    <<: *tast-decoder-v4l2-sf-vp9-extra-job
+    params:
+      <<: *tast-decoder-v4l2-sf-vp9-extra-params
+      excluded_tests:
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_level5_0_frm_resize
+        - video.PlatformDecoding.v4l2_stateful_vp9_0_level5_0_sub8x8_sf
+    rules: *max-6_6-rules
+
+  tast-hardware-arm64-mediatek: *tast-hardware-job
+  tast-hardware-arm64-qualcomm: *tast-hardware-job
+  tast-hardware-x86-intel: *tast-hardware-job
+  tast-hardware-x86-amd: *tast-hardware-job
+
+  tast-kernel-arm64-mediatek: *tast-kernel-job
+  tast-kernel-arm64-qualcomm: *tast-kernel-job
+  tast-kernel-x86-intel: *tast-kernel-job
+  tast-kernel-x86-amd: *tast-kernel-job
+
+  tast-mm-decode-arm64-mediatek: *tast-mm-decode-job
+  tast-mm-decode-arm64-qualcomm: *tast-mm-decode-job
+
+  tast-mm-misc-arm64-mediatek: *tast-mm-misc-job
+  tast-mm-misc-arm64-qualcomm: *tast-mm-misc-job
+  tast-mm-misc-x86-intel: *tast-mm-misc-job
+  tast-mm-misc-x86-amd: *tast-mm-misc-job
+
+  tast-perf-arm64-mediatek: *tast-perf-job
+  tast-perf-arm64-qualcomm: *tast-perf-job
+  tast-perf-x86-intel: *tast-perf-job
+  tast-perf-x86-amd: *tast-perf-job
+
+  tast-perf-long-duration-arm64-mediatek: *tast-perf-long-duration-job
+  tast-perf-long-duration-arm64-qualcomm: *tast-perf-long-duration-job
+  tast-perf-long-duration-x86-intel: *tast-perf-long-duration-job
+  tast-perf-long-duration-x86-amd: *tast-perf-long-duration-job
+
+  tast-platform-arm64-mediatek: *tast-platform-job
+  tast-platform-arm64-qualcomm: *tast-platform-job
+  tast-platform-x86-intel: *tast-platform-job
+  tast-platform-x86-amd: *tast-platform-job
+
+  tast-power-arm64-mediatek: *tast-power-job
+  tast-power-arm64-qualcomm: *tast-power-job
+  tast-power-x86-intel: *tast-power-job
+  tast-power-x86-amd: *tast-power-job
+
+  tast-sound-arm64-mediatek: *tast-sound-job
+  tast-sound-arm64-qualcomm: *tast-sound-job
+  tast-sound-x86-intel: *tast-sound-job
+  tast-sound-x86-amd: *tast-sound-job
+
+  tast-ui-arm64-mediatek: *tast-ui-job
+  tast-ui-arm64-qualcomm: *tast-ui-job
+  tast-ui-x86-intel: *tast-ui-job
+  tast-ui-x86-amd: *tast-ui-job
+
+  v4l2-decoder-conformance-av1:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'AV1-TEST-VECTORS'
+      decoders:
+        - 'GStreamer-AV1-V4L2SL-Gst1.0'
+
+  v4l2-decoder-conformance-av1-chromium-10bit:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'CHROMIUM-10bit-AV1-TEST-VECTORS'
+      decoders:
+        - 'GStreamer-AV1-V4L2SL-Gst1.0'
+
+  v4l2-decoder-conformance-h264:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'JVT-AVC_V1'
+      decoders:
+        - 'GStreamer-H.264-V4L2-Gst1.0'
+        - 'GStreamer-H.264-V4L2SL-Gst1.0'
+
+  v4l2-decoder-conformance-h264-frext:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'JVT-FR-EXT'
+      decoders:
+        - 'GStreamer-H.264-V4L2-Gst1.0'
+        - 'GStreamer-H.264-V4L2SL-Gst1.0'
+
+  v4l2-decoder-conformance-h265:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'JCT-VC-HEVC_V1'
+      decoders:
+        - 'GStreamer-H.265-V4L2-Gst1.0'
+        - 'GStreamer-H.265-V4L2SL-Gst1.0'
+
+  v4l2-decoder-conformance-vp8:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'VP8-TEST-VECTORS'
+      decoders:
+        - 'GStreamer-VP8-V4L2-Gst1.0'
+        - 'GStreamer-VP8-V4L2SL-Gst1.0'
+
+  v4l2-decoder-conformance-vp9:
+    <<: *v4l2-decoder-conformance-job
+    params:
+      <<: *v4l2-decoder-conformance-params
+      testsuite: 'VP9-TEST-VECTORS'
+      decoders:
+        - 'GStreamer-VP9-V4L2-Gst1.0'
+        - 'GStreamer-VP9-V4L2SL-Gst1.0'
+
+  watchdog-reset-arm64-mediatek: *watchdog-reset-job
+  watchdog-reset-arm64-qualcomm: *watchdog-reset-job
+  watchdog-reset-x86-amd: *watchdog-reset-job
+  watchdog-reset-x86-intel: *watchdog-reset-job

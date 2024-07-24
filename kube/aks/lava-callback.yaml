@@ -1,0 +1,65 @@
+---
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2023 Collabora Limited
+# Author: Guillaume Tucker <guillaume.tucker@collabora.com>
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lava-callback
+  namespace: kernelci-pipeline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lava-callback
+  template:
+    metadata:
+      labels:
+        app: lava-callback
+    spec:
+      containers:
+        - name: lava-callback
+          image: kernelci/kernelci:lava-callback@sha256:0037ee6df605a49938f61e11e071a9d730d1702a042dec4c3baa36beaa9b3262
+          imagePullPolicy: Always
+          command:
+            - 'uvicorn'
+          args:
+            - 'src.lava_callback:app'
+            - '--host=0.0.0.0'
+            - '--port=8000'
+            - '--proxy-headers'
+            - '--forwarded-allow-ips=*'
+          env:
+            - name: KCI_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kernelci-api-token
+                  key: token
+            - name: KCI_SETTINGS
+              value: /secrets/kernelci.toml
+          volumeMounts:
+            - name: secrets
+              mountPath: /secrets
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: secrets
+          secret:
+            secretName: pipeline-secrets
+        - name: config-volume
+          configMap:
+            name: pipeline-configmap
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lava-callback
+  namespace: kernelci-pipeline
+spec:
+  ports:
+    - port: 80
+      targetPort: 8000
+  selector:
+    app: lava-callback

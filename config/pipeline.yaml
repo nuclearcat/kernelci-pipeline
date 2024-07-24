@@ -6,13 +6,113 @@
 # Not directly loaded into the config, only used for YAML aliases in this file
 _anchors:
 
+  arm64-device: &arm64-device
+    arch: arm64
+    boot_method: u-boot
+
+  arm-device: &arm-device
+    <<: *arm64-device
+    arch: arm
+
+  baseline: &baseline-job
+    template: baseline.jinja2
+    kind: job
+    kcidb_test_suite: boot
+
   checkout: &checkout-event
     channel: node
     name: checkout
     state: available
 
+  build-k8s-all: &build-k8s-all
+    event: *checkout-event
+    runtime:
+      name: k8s-all
 
-api_configs:
+  kbuild: &kbuild-job
+    template: kbuild.jinja2
+    kind: kbuild
+    rules:
+      tree:
+      - '!android'
+
+  kbuild-clang-17-x86: &kbuild-clang-17-x86-job
+    <<: *kbuild-job
+    image: kernelci/staging-clang-17:x86-kselftest-kernelci
+    params: &kbuild-clang-17-x86-params
+      arch: x86_64
+      compiler: clang-17
+      defconfig: x86_64_defconfig
+
+  kbuild-clang-12-arm64: &kbuild-clang-17-arm64-job
+    <<: *kbuild-job
+    image: kernelci/staging-clang-17:arm64-kselftest-kernelci
+    params: &kbuild-clang-17-arm64-params
+      arch: arm64
+      compiler: clang-17
+      cross_compile: 'aarch64-linux-gnu-'
+      defconfig: defconfig
+
+  kbuild-gcc-12-arm64: &kbuild-gcc-12-arm64-job
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:arm64-kselftest-kernelci
+    params: &kbuild-gcc-12-arm64-params
+      arch: arm64
+      compiler: gcc-12
+      cross_compile: 'aarch64-linux-gnu-'
+      defconfig: defconfig
+
+  kbuild-gcc-12-x86: &kbuild-gcc-12-x86-job
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:x86-kselftest-kernelci
+    params: &kbuild-gcc-12-x86-params
+      arch: x86_64
+      compiler: gcc-12
+      defconfig: x86_64_defconfig
+
+  x86_64-device: &x86_64-device
+    arch: x86_64
+    boot_method: grub
+    mach: x86
+
+  amd-platforms: &amd-platforms
+    - acer-R721T-grunt
+    - acer-cp514-3wh-r0qs-guybrush
+    - asus-CM1400CXA-dalboz
+    - dell-latitude-3445-7520c-skyrim
+    - hp-14-db0003na-grunt
+    - hp-11A-G6-EE-grunt
+    - hp-14b-na0052xx-zork
+    - hp-x360-14a-cb0001xx-zork
+    - lenovo-TPad-C13-Yoga-zork
+
+  intel-platforms: &intel-platforms
+    - acer-cb317-1h-c3z6-dedede
+    - acer-cbv514-1h-34uz-brya
+    - acer-chromebox-cxi4-puff
+    - acer-cp514-2h-1130g7-volteer
+    - acer-cp514-2h-1160g7-volteer
+    - asus-C433TA-AJ0005-rammus
+    - asus-C436FA-Flip-hatch
+    - asus-C523NA-A20057-coral
+    - dell-latitude-5300-8145U-arcada
+    - dell-latitude-5400-4305U-sarien
+    - dell-latitude-5400-8665U-sarien
+    - hp-x360-14-G1-sona
+    - hp-x360-12b-ca0010nr-n4020-octopus
+
+  mediatek-platforms: &mediatek-platforms
+    - mt8183-kukui-jacuzzi-juniper-sku16
+    - mt8186-corsola-steelix-sku131072
+    - mt8192-asurada-spherion-r0
+    - mt8195-cherry-tomato-r2
+
+  qualcomm-platforms: &qualcomm-platforms
+    - sc7180-trogdor-kingoftown
+    - sc7180-trogdor-lazor-limozeen
+
+
+api:
 
   docker-host:
     url: http://172.17.0.1:8001
@@ -21,13 +121,13 @@ api_configs:
     url: https://staging.kernelci.org:9000
 
   early-access:
-    url: https://kernelci-api.eastus.cloudapp.azure.com
+    url: https://kernelci-api.westus3.cloudapp.azure.com
 
   k8s-host:
     url: http://kernelci-api:8001
 
 
-storage_configs:
+storage:
 
   docker-host:
     storage_type: ssh
@@ -40,7 +140,7 @@ storage_configs:
     host: staging.kernelci.org
     port: 9022
     base_url: http://storage.staging.kernelci.org/api/
-  
+
   k8s-host:
     storage_type: ssh
     host: kernelci-api-ssh
@@ -51,7 +151,7 @@ storage_configs:
     storage_type: azure
     base_url: https://kciapistagingstorage1.file.core.windows.net/
     share: staging
-    sas_public_token: "?sv=2022-11-02&ss=bfqt&srt=sco&sp=r&se=2123-07-20T22:00:00Z&st=2023-07-21T18:27:25Z&spr=https&sig=TDt3NorDXylmyUtBQnP1S5BZ3uywR06htEGTG%2BSxLWg%3D"
+    sas_public_token: "?sv=2022-11-02&ss=f&srt=sco&sp=r&se=2024-10-17T19:19:12Z&st=2023-10-17T11:19:12Z&spr=https&sig=sLmFlvZHXRrZsSGubsDUIvTiv%2BtzgDq6vALfkrtWnv8%3D"
 
   early-access-azure:
     <<: *azure-files
@@ -72,6 +172,23 @@ runtimes:
     lab_type: kubernetes
     context: 'gke_android-kernelci-external_europe-west4-c_kci-eu-west4'
 
+  k8s-all:
+    lab_type: kubernetes
+    context:
+      - 'aks-kbuild-medium-1'
+
+  lava-broonie:
+    lab_type: lava
+    url: 'https://lava.sirena.org.uk/'
+    priority_min: 10
+    priority_max: 40
+    notify:
+      callback:
+        token: kernelci-new-api-callback
+    rules:
+      tree:
+      - '!android'
+
   lava-collabora: &lava-collabora-staging
     lab_type: lava
     url: https://lava.collabora.dev/
@@ -80,7 +197,6 @@ runtimes:
     notify:
       callback:
         token: kernelci-api-token-staging
-        url: https://staging.kernelci.org:9100
 
   # ToDo: avoid creating a separate Runtime entry
   # https://github.com/kernelci/kernelci-core/issues/2088
@@ -89,7 +205,39 @@ runtimes:
     notify:
       callback:
         token: kernelci-api-token-early-access
-        url: https://staging.kernelci.org:9100
+
+  lava-collabora-staging:
+    <<: *lava-collabora-staging
+    url: https://staging.lava.collabora.dev/
+    notify:
+      callback:
+        token: kernelci-api-token-lava-staging
+
+  lava-baylibre:
+    lab_type: lava
+    url: 'https://lava.baylibre.com/'
+    notify:
+      callback:
+        token: kernelci-new-api
+    rules:
+      tree:
+      - kernelci
+      - mainline
+      - next
+
+  lava-qualcomm:
+    lab_type: lava
+    url: 'https://lava.infra.foundries.io'
+    notify:
+      callback:
+        token: kernelci-lab-qualcomm
+
+  lava-cip:
+    lab_type: lava
+    url: 'https://lava.ciplatform.org/'
+    notify:
+      callback:
+        token: kernel-ci-new-api
 
   shell:
     lab_type: shell
@@ -104,20 +252,601 @@ jobs:
   #   template: 'fstests.jinja2'
   #   image: 'kernelci/staging-kernelci'
 
-  baseline-x86:
-    template: baseline.jinja2
+  baseline-arm64: *baseline-job
+  baseline-arm64-broonie: *baseline-job
+  baseline-arm64-qualcomm: *baseline-job
+  baseline-arm64-android: *baseline-job
+  baseline-arm64-mfd: *baseline-job
+  baseline-arm-android: *baseline-job
+  baseline-arm-mfd: *baseline-job
+  baseline-arm: *baseline-job
+  baseline-arm-baylibre: *baseline-job
+  baseline-x86: *baseline-job
+  baseline-x86-baylibre: *baseline-job
+  baseline-x86-qualcomm: *baseline-job
+  baseline-x86-cip: *baseline-job
+  baseline-x86-kcidebug-amd: *baseline-job
+  baseline-x86-kcidebug-intel: *baseline-job
+  baseline-arm64-kcidebug-mediatek: *baseline-job
+  baseline-arm64-kcidebug-qualcomm: *baseline-job
+  baseline-x86-mfd: *baseline-job
 
-  kbuild-gcc-10-x86:
-    template: kbuild.jinja2
-    image: kernelci/staging-gcc-10:x86-kselftest-kernelci
+  kbuild-gcc-12-arc-haps_hs_smp_defconfig:
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:arc-kselftest-kernelci
     params:
-      arch: x86_64
-      compiler: gcc-10
-      defconfig: x86_64_defconfig
+      arch: arc
+      compiler: gcc-12
+      cross_compile: 'arc-elf32-'
+      defconfig: haps_hs_smp_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-clang-17-arm: &kbuild-clang-17-arm-job
+    <<: *kbuild-job
+    image: kernelci/staging-clang-17:arm64-kselftest-kernelci
+    params: &kbuild-clang-17-arm-params
+      arch: arm
+      compiler: clang-17
+      cross_compile: 'arm-linux-gnueabihf-'
+      defconfig: multi_v7_defconfig
+
+  kbuild-gcc-12-arm: &kbuild-gcc-12-arm-job
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:arm64-kselftest-kernelci
+    params: &kbuild-gcc-12-arm-params
+      arch: arm
+      compiler: gcc-12
+      cross_compile: 'arm-linux-gnueabihf-'
+      defconfig: multi_v7_defconfig
+
+  kbuild-clang-17-arm64-android: &kbuild-clang-17-arm64-android-job
+    <<: *kbuild-clang-17-arm64-job
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-clang-17-arm64-android-allmodconfig:
+    <<: *kbuild-clang-17-arm64-android-job
+    params:
+      <<: *kbuild-clang-17-arm64-params
+      defconfig:
+        - defconfig
+        - allmodconfig
+
+  kbuild-clang-17-arm64-android-allnoconfig:
+    <<: *kbuild-clang-17-arm64-android-job
+    params:
+      <<: *kbuild-clang-17-arm64-params
+      defconfig:
+        - defconfig
+        - allnoconfig
+
+  kbuild-clang-17-arm64-android-big_endian:
+    <<: *kbuild-clang-17-arm64-android-job
+    params:
+      <<: *kbuild-clang-17-arm64-params
+      fragments:
+       - CONFIG_CPU_BIG_ENDIAN=y
+
+  kbuild-clang-17-arm64-android-randomize:
+    <<: *kbuild-clang-17-arm64-android-job
+    params:
+      <<: *kbuild-clang-17-arm64-params
+      fragments:
+       - CONFIG_RANDOMIZE_BASE=y
+
+  kbuild-gcc-12-arm64:
+    <<: *kbuild-gcc-12-arm64-job
+
+  kbuild-gcc-12-arm64-chromebook-kcidebug:
+    template: kbuild.jinja2
+    kind: kbuild
+    image: kernelci/staging-gcc-12:arm64-kselftest-kernelci
+    params:
+      arch: arm64
+      compiler: gcc-12
+      cross_compile: 'aarch64-linux-gnu-'
+      cross_compile_compat: 'arm-linux-gnueabihf-'
+      defconfig: defconfig
+      fragments:
+        - lab-setup
+        - arm64-chromebook
+        - kcidebug
+    rules:
+      tree:
+      - '!android'
+
+  kbuild-gcc-12-arm64-dtbscheck:
+    <<: *kbuild-gcc-12-arm64-job
+    kind: job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      dtbs_check: true
+    kcidb_test_suite: dtbs_check
+
+  kbuild-gcc-12-arm64-preempt_rt:
+    <<: *kbuild-gcc-12-arm64-job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      fragments:
+       - 'preempt_rt'
+      defconfig: defconfig
+    rules:
+      tree:
+      - 'stable-rt'
+
+  kbuild-gcc-12-arm64-preempt_rt_chromebook:
+    <<: *kbuild-gcc-12-arm64-job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      fragments:
+       - 'preempt_rt'
+       - 'arm64-chromebook'
+      defconfig: defconfig
+    rules:
+      tree:
+      - 'stable-rt'
+
+  kbuild-gcc-12-arm64-android: &kbuild-gcc-12-arm64-android-job
+    <<: *kbuild-gcc-12-arm64-job
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-arm64-android-allmodconfig:
+    <<: *kbuild-gcc-12-arm64-android-job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      defconfig:
+        - defconfig
+        - allmodconfig
+
+  kbuild-gcc-12-arm64-android-allnoconfig:
+    <<: *kbuild-gcc-12-arm64-android-job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      defconfig:
+        - defconfig
+        - allnoconfig
+
+  kbuild-gcc-12-arm64-android-big_endian:
+    <<: *kbuild-gcc-12-arm64-android-job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      fragments:
+       - CONFIG_CPU_BIG_ENDIAN=y
+
+  kbuild-gcc-12-arm64-android-randomize:
+    <<: *kbuild-gcc-12-arm64-android-job
+    params:
+      <<: *kbuild-gcc-12-arm64-params
+      fragments:
+       - CONFIG_RANDOMIZE_BASE=y
+
+  kbuild-gcc-12-arm64-mfd:
+    <<: *kbuild-gcc-12-arm64-job
+    rules:
+      tree:
+      - 'lee-mfd'
+
+  kbuild-clang-17-arm-android: &kbuild-clang-17-arm-android-job
+    <<: *kbuild-clang-17-arm-job
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-clang-17-arm-android-allmodconfig:
+    <<: *kbuild-clang-17-arm-android-job
+    params:
+      <<: *kbuild-clang-17-arm-params
+      defconfig:
+        - imx_v6_v7_defconfig
+        - 'allmodconfig'
+
+  kbuild-clang-17-arm-android-multi_v5_defconfig:
+    <<: *kbuild-clang-17-arm-android-job
+    params:
+      <<: *kbuild-clang-17-arm-params
+      defconfig: multi_v5_defconfig
+
+  kbuild-clang-17-arm-android-imx_v6_v7_defconfig:
+    <<: *kbuild-clang-17-arm-android-job
+    params:
+      <<: *kbuild-clang-17-arm-params
+      defconfig: imx_v6_v7_defconfig
+
+  kbuild-clang-17-arm-android-omap2plus_defconfig:
+    <<: *kbuild-clang-17-arm-android-job
+    params:
+      <<: *kbuild-clang-17-arm-params
+      defconfig: omap2plus_defconfig
+
+  kbuild-clang-17-arm-android-vexpress_defconfig:
+    <<: *kbuild-clang-17-arm-android-job
+    params:
+      <<: *kbuild-clang-17-arm-params
+      defconfig: vexpress_defconfig
+
+  kbuild-gcc-12-arm-imx_v6_v7_defconfig:
+    <<: *kbuild-gcc-12-arm-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: imx_v6_v7_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-arm-multi_v5_defconfig:
+    <<: *kbuild-gcc-12-arm-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: multi_v5_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-arm-multi_v7_defconfig:
+    <<: *kbuild-gcc-12-arm-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: multi_v7_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-arm-mfd:
+    <<: *kbuild-gcc-12-arm-job
+    rules:
+      tree:
+      - 'lee-mfd'
+
+  kbuild-gcc-12-arm-preempt_rt:
+    <<: *kbuild-gcc-12-arm-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      fragments:
+       - 'preempt_rt'
+      defconfig: multi_v7_defconfig
+    rules:
+      tree:
+      - 'stable-rt'
+
+  kbuild-gcc-12-arm-vexpress_defconfig:
+    <<: *kbuild-gcc-12-arm-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: vexpress_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-arm-android: &kbuild-gcc-12-arm-android-job
+    <<: *kbuild-gcc-12-arm-job
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-arm-android-allmodconfig:
+    <<: *kbuild-gcc-12-arm-android-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig:
+        - imx_v6_v7_defconfig
+        - allmodconfig
+
+  kbuild-gcc-12-arm-android-multi_v5_defconfig:
+    <<: *kbuild-gcc-12-arm-android-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: multi_v5_defconfig
+
+  kbuild-gcc-12-arm-android-imx_v6_v7_defconfig:
+    <<: *kbuild-gcc-12-arm-android-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: imx_v6_v7_defconfig
+
+  kbuild-gcc-12-arm-android-omap2plus_defconfig:
+    <<: *kbuild-gcc-12-arm-android-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: omap2plus_defconfig
+
+  kbuild-gcc-12-arm-android-vexpress_defconfig:
+    <<: *kbuild-gcc-12-arm-android-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: vexpress_defconfig
+
+  kbuild-gcc-12-arm-omap2plus_defconfig:
+    <<: *kbuild-gcc-12-arm-job
+    params:
+      <<: *kbuild-gcc-12-arm-params
+      defconfig: omap2plus_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-um:
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:x86-kselftest-kernelci
+    params:
+      arch: um
+      compiler: gcc-12
+      defconfig: defconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-clang-17-i386: &kbuild-clang-17-i386-job
+    <<: *kbuild-job
+    image: kernelci/staging-clang-17:x86-kselftest-kernelci
+    params: &kbuild-clang-17-i386-params
+      arch: i386
+      compiler: clang-17
+      defconfig: i386_defconfig
+
+  kbuild-clang-17-i386-android-allnoconfig:
+    <<: *kbuild-clang-17-i386-job
+    params:
+      <<: *kbuild-clang-17-i386-params
+      defconfig:
+        - i386_defconfig
+        - allnoconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-i386: &kbuild-gcc-12-i386-job
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:x86-kselftest-kernelci
+    params: &kbuild-gcc-12-i386-params
+      arch: i386
+      compiler: gcc-12
+      defconfig: i386_defconfig
+
+  kbuild-gcc-12-i386-allnoconfig:
+    <<: *kbuild-gcc-12-i386-job
+    params:
+      <<: *kbuild-gcc-12-i386-params
+      defconfig: allnoconfig
+      disable_modules: true
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-i386-tinyconfig:
+    <<: *kbuild-gcc-12-i386-job
+    params:
+      <<: *kbuild-gcc-12-i386-params
+      defconfig: tinyconfig
+      disable_modules: true
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-i386-android-allnoconfig:
+    <<: *kbuild-gcc-12-i386-job
+    params:
+      <<: *kbuild-gcc-12-i386-params
+      defconfig:
+        - i386_defconfig
+        - allnoconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-i386-mfd:
+    <<: *kbuild-gcc-12-i386-job
+    rules:
+      tree:
+      - 'lee-mfd'
+
+  kbuild-gcc-12-mips-32r2el_defconfig:
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:mips-kselftest-kernelci
+    params:
+      arch: mips
+      compiler: gcc-12
+      cross_compile: 'mips-linux-gnu-'
+      defconfig: 32r2el_defconfig
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-clang-17-riscv: &kbuild-clang-17-riscv-job
+    <<: *kbuild-job
+    image: kernelci/staging-clang-17:riscv64-kselftest-kernelci
+    params: &kbuild-clang-17-riscv-params
+      arch: riscv
+      compiler: clang-17
+      cross_compile: 'riscv64-linux-gnu-'
+      defconfig: defconfig
+
+  kbuild-clang-17-riscv-android-defconfig:
+    <<: *kbuild-clang-17-riscv-job
+    params:
+      <<: *kbuild-clang-17-riscv-params
+      defconfig:
+        - defconfig
+        - allnoconfig
+    rules: &kbuild-riscv-android-rules
+      min_version:
+        version: 4
+        patchlevel: 19
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-riscv: &kbuild-gcc-12-riscv-job
+    <<: *kbuild-job
+    image: kernelci/staging-gcc-12:riscv64-kselftest-kernelci
+    params: &kbuild-gcc-12-riscv-params
+      arch: riscv
+      compiler: gcc-12
+      cross_compile: 'riscv64-linux-gnu-'
+      defconfig: defconfig
+
+  kbuild-gcc-12-riscv-android-defconfig:
+    <<: *kbuild-gcc-12-riscv-job
+    params:
+      <<: *kbuild-gcc-12-riscv-params
+      defconfig:
+        - defconfig
+        - allnoconfig
+    rules:
+      <<: *kbuild-riscv-android-rules
+
+  kbuild-gcc-12-riscv-nommu_k210_defconfig:
+    <<: *kbuild-gcc-12-riscv-job
+    params:
+      <<: *kbuild-gcc-12-riscv-params
+      defconfig: nommu_k210_defconfig
+      disable_modules: true
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-riscv-mfd:
+    <<: *kbuild-gcc-12-riscv-job
+    rules:
+      tree:
+      - 'lee-mfd'
+
+  kbuild-clang-17-x86:
+    <<: *kbuild-clang-17-x86-job
+
+  kbuild-clang-17-x86-android-allmodconfig:
+    <<: *kbuild-clang-17-x86-job
+    params:
+      <<: *kbuild-clang-17-x86-params
+      defconfig:
+        - x86_64_defconfig
+        - allmodconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-clang-17-x86-android-allnoconfig:
+    <<: *kbuild-clang-17-x86-job
+    params:
+      <<: *kbuild-clang-17-x86-params
+      defconfig:
+        - x86_64_defconfig
+        - allnoconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-x86:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      fragments:
+        - lab-setup
+        - 'x86-board'
+
+  kbuild-gcc-12-x86-allnoconfig:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      defconfig: allnoconfig
+      disable_modules: true
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-x86-kcidebug:
+    <<: *kbuild-gcc-12-i386-job
+    params:
+      <<: *kbuild-gcc-12-i386-params
+      defconfig: defconfig
+      fragments:
+        - x86-board
+        - kcidebug
+    rules:
+      tree:
+      - '!android'
+
+  kbuild-gcc-12-x86-tinyconfig:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      defconfig: tinyconfig
+      disable_modules: true
+    rules:
+      tree:
+      - 'stable-rc'
+      - 'kernelci'
+
+  kbuild-gcc-12-x86-android-allmodconfig:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      defconfig:
+        - x86_64_defconfig
+        - allmodconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-x86-android-allnoconfig:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      defconfig:
+        - x86_64_defconfig
+        - allnoconfig
+    rules:
+      tree:
+      - 'android'
+
+  kbuild-gcc-12-x86-preempt_rt:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      fragments:
+       - 'preempt_rt'
+      defconfig: defconfig
+    rules:
+      tree:
+      - 'stable-rt'
+
+  kbuild-gcc-12-x86-preempt_rt_x86_board:
+    <<: *kbuild-gcc-12-x86-job
+    params:
+      <<: *kbuild-gcc-12-x86-params
+      fragments:
+       - 'preempt_rt'
+       - 'x86-board'
+      defconfig: defconfig
+    rules:
+      tree:
+      - 'stable-rt'
+
+  kbuild-gcc-12-x86-mfd:
+    <<: *kbuild-gcc-12-x86-job
+    rules:
+      tree:
+      - 'lee-mfd'
 
   kunit: &kunit-job
     template: kunit.jinja2
-    image: kernelci/staging-gcc-10:x86-kunit-kernelci
+    kind: job
+    image: kernelci/staging-gcc-12:x86-kunit-kernelci
+    kcidb_test_suite: kunit
 
   kunit-x86_64:
     <<: *kunit-job
@@ -126,10 +855,175 @@ jobs:
 
   kver:
     template: kver.jinja2
+    kind: test
     image: kernelci/staging-kernelci
+    kcidb_test_suite: kernelci_kver
 
+  kselftest-cpufreq:
+    template: kselftest.jinja2
+    kind: job
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240313.0/{debarch}'
+      collections: cpufreq
+      job_timeout: 10
+    kcidb_test_suite: kselftest.cpufreq
+
+  kselftest-dmabuf-heaps:
+    template: kselftest.jinja2
+    kind: job
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240313.0/{debarch}'
+      collections: dmabuf-heaps
+      job_timeout: 10
+    kcidb_test_suite: kselftest.dmabuf-heaps
+
+  kselftest-dt:
+    template: kselftest.jinja2
+    kind: job
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240221.0/{debarch}'
+      collections: dt
+      job_timeout: 10
+    rules:
+      min_version:
+        version: 6
+        patchlevel: 7
+    kcidb_test_suite: kselftest.dt
+
+  kselftest-exec:
+    template: kselftest.jinja2
+    kind: job
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240313.0/{debarch}'
+      collections: exec
+      job_timeout: 10
+    kcidb_test_suite: kselftest.exec
+
+  kselftest-iommu:
+    template: kselftest.jinja2
+    kind: job
+    params:
+      nfsroot: 'http://storage.kernelci.org/images/rootfs/debian/bookworm-kselftest/20240313.0/{debarch}'
+      collections: iommu
+      job_timeout: 10
+    kcidb_test_suite: kselftest.iommu
+
+  rt-tests: &rt-tests
+    template: rt-tests.jinja2
+    kind: job
+    nfsroot: 'https://storage.kernelci.org/images/rootfs/debian/bookworm-rt/20240313.0/{debarch}'
+    params: &rt-tests-params
+      job_timeout: '10'
+      duration: '60s'
+    kcidb_test_suite: rt-tests
+    rules:
+      fragments:
+        - preempt_rt
+
+  rt-tests-cyclicdeadline:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'cyclicdeadline'
+    kcidb_test_suite: rt-tests.cyclicdeadline
+
+  rt-tests-cyclictest:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'cyclictest'
+    kcidb_test_suite: rt-tests.cyclictest
+
+  rt-tests-pi-stress:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'pi-stress'
+    kcidb_test_suite: rt-tests.pi-params
+
+  rt-tests-pmqtest:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'pmqtest'
+    kcidb_test_suite: rt-tests.pmqtest
+
+  rt-tests-ptsematest:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'ptsematest'
+    kcidb_test_suite: rt-tests.ptsematest
+
+  rt-tests-rt-migrate-test:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'rt-migrate-test'
+    kcidb_test_suite: rt-tests.rt-migrate-test
+
+  rt-tests-rtla-osnoise:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'rtla-osnoise'
+      tst_group: 'rtla'
+    kcidb_test_suite: rt-tests.rtla-osnoise
+
+  rt-tests-rtla-timerlat:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'rtla-timerlat'
+      tst_group: 'rtla'
+    kcidb_test_suite: rt-tests.rtla-timerlat
+
+  rt-tests-signaltest:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'signaltest'
+    kcidb_test_suite: rt-tests.signaltest
+
+  rt-tests-sigwaittest:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'sigwaittest'
+    kcidb_test_suite: rt-tests.sigwaittest
+
+  rt-tests-svsematest:
+    <<: *rt-tests
+    params:
+      <<: *rt-tests-params
+      tst_cmd: 'svsematest'
+    kcidb_test_suite: rt-tests.svsematest
+
+  # amd64-only temporary
+  sleep:
+    template: sleep.jinja2
+    kind: job
+    params:
+      nfsroot: http://storage.kernelci.org/images/rootfs/debian/bullseye/20240129.0/{debarch}
+      sleep_params: mem freeze
+    kcidb_test_suite: kernelci_sleep
 
 trees:
+
+  broonie-misc:
+    url: "https://git.kernel.org/pub/scm/linux/kernel/git/broonie/misc.git"
+
+  broonie-regmap:
+    url: "https://git.kernel.org/pub/scm/linux/kernel/git/broonie/regmap.git"
+
+  broonie-regulator:
+    url: "https://git.kernel.org/pub/scm/linux/kernel/git/broonie/regulator.git"
+
+  broonie-sound:
+    url: "https://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git"
+
+  broonie-spi:
+    url: "https://git.kernel.org/pub/scm/linux/kernel/git/broonie/spi.git"
 
   kernelci:
     url: "https://github.com/kernelci/linux.git"
@@ -137,44 +1031,530 @@ trees:
   mainline:
     url: 'https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
 
+  stable-rc:
+    url: 'https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git'
 
-device_types:
+  stable-rt:
+    url: 'https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git'
+
+  lee-mfd:
+    url: "https://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git"
+
+  next:
+    url: 'https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git'
+
+  mediatek:
+    url: 'https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux.git'
+
+  android:
+    url: 'https://android.googlesource.com/kernel/common'
+
+  collabora-next:
+    url: 'https://gitlab.collabora.com/kernel/collabora-next.git'
+
+  collabora-chromeos-kernel:
+    url: 'https://gitlab.collabora.com/google/chromeos-kernel.git'
+
+  media:
+    url: 'https://git.linuxtv.org/media_stage.git'
+
+platforms:
 
   docker:
-    base_name: docker
-    class: docker
 
-  qemu-x86:
+  qemu-x86: &qemu-device
     base_name: qemu
     arch: x86_64
     boot_method: qemu
     mach: qemu
+    context:
+      arch: x86_64
+      cpu: qemu64
+      guestfs_interface: ide
+
+  qemu: *qemu-device
+
+  minnowboard-turbot-E3826: *x86_64-device
+  aaeon-UPN-EHLX4RE-A10-0864: *x86_64-device
+
+  bcm2711-rpi-4-b:
+    <<: *arm64-device
+    mach: broadcom
+    dtb: dtbs/broadcom/bcm2711-rpi-4-b.dtb
+
+  bcm2836-rpi-2-b:
+    <<: *arm-device
+    mach: broadcom
+    dtb: dtbs/bcm2836-rpi-2-b.dtb
+
+  imx6q-sabrelite:
+    <<: *arm-device
+    mach: imx
+    dtb: dtbs/imx6q-sabrelite.dtb
+
+  sun50i-h5-libretech-all-h3-cc:
+    <<: *arm64-device
+    mach: allwinner
+    dtb: dtbs/allwinner/sun50i-h5-libretech-all-h3-cc.dtb
+
+  sun7i-a20-cubieboard2:
+    <<: *arm-device
+    mach: allwinner
+    dtb: dtbs/sun7i-a20-cubieboard2.dtb
+
+  meson-g12b-a311d-khadas-vim3:
+    <<: *arm64-device
+    mach: amlogic
+    dtb: dtbs/amlogic/meson-g12b-a311d-khadas-vim3.dtb
+
+  odroid-xu3:
+    <<: *arm-device
+    mach: samsung
+    dtb: dtbs/exynos5422-odroidxu3.dtb
+
+  qcs6490-rb3gen2:
+    <<: *arm64-device
+    boot_method: fastboot
+    mach: qcom
+    dtb: dtbs/qcom/qcs6490-rb3gen2.dtb
+
+  rk3288-rock2-square:
+    <<: *arm-device
+    mach: rockchip
+    dtb: dtbs/rk3288-rock2-square.dtb
+
+  rk3288-veyron-jaq:
+    <<: *arm-device
+    boot_method: depthcharge
+    mach: rockchip
+    dtb: dtbs/rk3288-veyron-jaq.dtb
+
+  rk3399-gru-kevin:
+    <<: *arm64-device
+    boot_method: depthcharge
+    mach: rockchip
+    dtb: dtbs/rockchip/rk3399-gru-kevin.dtb
+
+  rk3399-rock-pi-4b:
+    <<: *arm64-device
+    mach: rockchip
+    dtb: dtbs/rockchip/rk3399-rock-pi-4b.dtb
+
+  rk3588-rock-5b:
+    <<: *arm64-device
+    mach: rockchip
+    dtb: dtbs/rockchip/rk3588-rock-5b.dtb
+
+  sun50i-h6-pine-h64:
+    <<: *arm64-device
+    mach: allwinner
+    dtb: dtbs/allwinner/sun50i-h6-pine-h64.dtb
 
   kubernetes:
-    base_name: kubernetes
-    class: kubernetes
 
   shell:
-    base_name: shell
-    class: shell
 
 
 scheduler:
 
-  - job: baseline-x86
+  - job: baseline-arm64
     event:
       channel: node
-      name: kbuild-gcc-10-x86
+      name: kbuild-gcc-12-arm64
       result: pass
     runtime:
       type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2711-rpi-4-b
+      - meson-g12b-a311d-khadas-vim3
+      - rk3399-gru-kevin
+      - rk3399-rock-pi-4b
+      - rk3588-rock-5b
+      - sun50i-h6-pine-h64
+
+  - job: baseline-arm64-broonie
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64
+      result: pass
+    runtime:
+      type: lava
+      name: lava-broonie
+    platforms:
+      - sun50i-h5-libretech-all-h3-cc
+
+  - job: baseline-arm64-qualcomm
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64
+      result: pass
+    runtime:
+      type: lava
+      name: lava-qualcomm
+    platforms:
+      - bcm2711-rpi-4-b
+      - qcs6490-rb3gen2
+
+  - job: baseline-arm64-android
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-android
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2711-rpi-4-b
+      - meson-g12b-a311d-khadas-vim3
+      - rk3399-gru-kevin
+      - rk3399-rock-pi-4b
+      - rk3588-rock-5b
+      - sun50i-h6-pine-h64
+
+  - job: baseline-arm64-mfd
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-mfd
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2711-rpi-4-b
+
+  - job: baseline-arm-android
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm-android
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2836-rpi-2-b
+      - imx6q-sabrelite
+      - odroid-xu3
+      - rk3288-rock2-square
+      - rk3288-veyron-jaq
+
+  - job: baseline-arm-mfd
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm-mfd
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2836-rpi-2-b
+
+  - job: baseline-arm
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2836-rpi-2-b
+      - imx6q-sabrelite
+      - odroid-xu3
+      - rk3288-rock2-square
+      - rk3288-veyron-jaq
+
+  - job: baseline-arm-baylibre
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm
+      result: pass
+    runtime:
+      type: lava
+      name: lava-baylibre
+    platforms:
+      - sun7i-a20-cubieboard2
+
+  - job: baseline-x86
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
     platforms:
       - qemu-x86
+      - minnowboard-turbot-E3826
 
-  - job: kbuild-gcc-10-x86
-    event: *checkout-event
+  - job: baseline-x86-baylibre
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86
+      result: pass
     runtime:
-      type: kubernetes
+      type: lava
+      name: lava-baylibre
+    platforms:
+      - qemu
+
+  - job: baseline-x86-kcidebug-amd
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86-kcidebug
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms: *amd-platforms
+
+  - job: baseline-x86-kcidebug-intel
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86-kcidebug
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms: *intel-platforms
+
+  - job: baseline-arm64-kcidebug-mediatek
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromebook-kcidebug
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms: *mediatek-platforms
+
+  - job: baseline-arm64-kcidebug-qualcomm
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromebook-kcidebug
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms: *qualcomm-platforms
+
+  - job: baseline-x86-cip
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86
+      result: pass
+    runtime:
+      type: lava
+      name: lava-cip
+    platforms:
+      - qemu
+
+  - job: baseline-x86-mfd
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86-mfd
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - minnowboard-turbot-E3826
+
+  - job: kbuild-clang-17-x86
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-x86-android-allmodconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-x86-android-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm64-android
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm64-android-allmodconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm64-android-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm64-android-big_endian
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm64-android-randomize
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-dtbscheck
+    <<: *build-k8s-all
+    rules:
+      tree:
+        - next:master
+
+  - job: kbuild-gcc-12-arm64-preempt_rt
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-preempt_rt_chromebook
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-android
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-android-allmodconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-android-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-android-big_endian
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-android-randomize
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-mfd
+    <<: *build-k8s-all
+
+# Example of same job name to apply to different tree/branch
+#  - job: kbuild-gcc-12-arm64-dtbscheck
+#    <<: *build-k8s-all
+#    rules:
+#      tree:
+#        - kernelci:staging-next
+
+  - job: kbuild-clang-17-arm-android
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm-android-allmodconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm-android-multi_v5_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm-android-imx_v6_v7_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm-android-omap2plus_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-arm-android-vexpress_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-android
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-android-allmodconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-android-multi_v5_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-android-imx_v6_v7_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-android-omap2plus_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-android-vexpress_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-chromebook-kcidebug
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-um
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-i386
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-riscv-android-defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-riscv
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-riscv-android-defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86
+    <<: *build-k8s-all
+  
+  - job: kbuild-gcc-12-x86-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-kcidebug
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-tinyconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-android-allmodconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-android-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-preempt_rt
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-preempt_rt_x86_board
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-mfd
+    <<: *build-k8s-all
+
+  - job: kbuild-clang-17-i386-android-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-i386-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-i386-tinyconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-i386-android-allnoconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-i386-mfd
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-mips-32r2el_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-riscv-nommu_k210_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-riscv-mfd
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arc-haps_hs_smp_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-imx_v6_v7_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-multi_v5_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-multi_v7_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-mfd
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-vexpress_defconfig
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-preempt_rt
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm-omap2plus_defconfig
+    <<: *build-k8s-all
 
   - job: kunit
     event: *checkout-event
@@ -191,13 +1571,35 @@ scheduler:
     runtime:
       type: shell
 
+  - job: kselftest-dt
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - bcm2711-rpi-4-b
+
+  - job: sleep
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86
+      result: pass
+    runtime:
+      type: lava
+      name: lava-collabora
+    platforms:
+      - acer-chromebox-cxi4-puff
+
 # -----------------------------------------------------------------------------
 # Legacy configuration data (still used by trigger service)
 #
 
 build_environments:
 
-  gcc-10:
+  gcc-12:
     cc: gcc
     cc_version: 10
     arch_params:
@@ -207,16 +1609,69 @@ build_environments:
 
 build_variants:
   variants: &build-variants
-    gcc-10:
-      build_environment: gcc-10
+    gcc-12:
+      build_environment: gcc-12
       architectures:
         x86_64:
           base_defconfig: 'x86_64_defconfig'
           filters:
             - regex: { defconfig: 'x86_64_defconfig' }
+        arm64:
+          base_defconfig: 'defconfig'
+          filters:
+            - regex: { defconfig: 'defconfig' }
+        arm:
+          base_defconfig: 'multi_v7_defconfig'
+          filters:
+            - regex: { defconfig: 'multi_v7_defconfig' }
 
 
 build_configs:
+
+  broonie-misc:
+    tree: broonie-misc
+    branch: 'for-kernelci'
+    variants: *build-variants
+
+  broonie-regmap:
+    tree: broonie-regmap
+    branch: 'for-next'
+    variants: *build-variants
+
+  broonie-regmap-fixes:
+    tree: broonie-regmap
+    branch: 'for-linus'
+    variants: *build-variants
+
+  broonie-regulator:
+    tree: broonie-regulator
+    branch: 'for-next'
+    variants: *build-variants
+
+  broonie-regulator-fixes:
+    tree: broonie-regulator
+    branch: 'for-linus'
+    variants: *build-variants
+
+  broonie-sound:
+    tree: broonie-sound
+    branch: 'for-next'
+    variants: *build-variants
+
+  broonie-sound-fixes:
+    tree: broonie-sound
+    branch: 'for-linus'
+    variants: *build-variants
+
+  broonie-spi:
+    tree: broonie-spi
+    branch: 'for-next'
+    variants: *build-variants
+
+  broonie-spi-fixes:
+    tree: broonie-spi
+    branch: 'for-linus'
+    variants: *build-variants
 
   kernelci_staging-mainline:
     tree: kernelci
@@ -237,3 +1692,194 @@ build_configs:
     tree: mainline
     branch: 'master'
     variants: *build-variants
+
+  stable-rc_4.19: &stable-rc
+    tree: stable-rc
+    branch: 'linux-4.19.y'
+    variants: *build-variants
+
+  stable-rc_5.4:
+    <<: *stable-rc
+    branch: 'linux-5.4.y'
+
+  stable-rc_5.10:
+    <<: *stable-rc
+    branch: 'linux-5.10.y'
+
+  stable-rc_5.15:
+    <<: *stable-rc
+    branch: 'linux-5.15.y'
+
+  stable-rc_6.1:
+    <<: *stable-rc
+    branch: 'linux-6.1.y'
+
+  stable-rc_6.6:
+    <<: *stable-rc
+    branch: 'linux-6.6.y'
+
+  stable-rc_6.7:
+    <<: *stable-rc
+    branch: 'linux-6.7.y'
+
+  next_master:
+    tree: next
+    branch: 'master'
+    variants: *build-variants
+
+  mediatek_for_next:
+    tree: mediatek
+    branch: 'for-next'
+    variants: *build-variants
+
+  android_4.19-stable:
+    tree: android
+    branch: 'android-4.19-stable'
+
+  android_mainline:
+    tree: android
+    branch: 'android-mainline'
+
+  android_mainline_tracking:
+    tree: android
+    branch: 'android-mainline-tracking'
+
+  android11-5.4:
+    tree: android
+    branch: 'android11-5.4'
+
+  android12-5.4:
+    tree: android
+    branch: 'android12-5.4'
+
+  android12-5.4-lts:
+    tree: android
+    branch: 'android12-5.4-lts'
+
+  android12-5.10:
+    tree: android
+    branch: 'android12-5.10'
+
+  android12-5.10-lts:
+    tree: android
+    branch: 'android12-5.10-lts'
+
+  android13-5.10:
+    tree: android
+    branch: 'android13-5.10'
+
+  android13-5.10-lts:
+    tree: android
+    branch: 'android13-5.10-lts'
+
+  android13-5.15:
+    tree: android
+    branch: 'android13-5.15'
+
+  android13-5.15-lts:
+    tree: android
+    branch: 'android13-5.15-lts'
+
+  android14-5.15:
+    tree: android
+    branch: 'android14-5.15'
+
+  android14-5.15-lts:
+    tree: android
+    branch: 'android14-5.15-lts'
+
+  android14-6.1:
+    tree: android
+    branch: 'android14-6.1'
+
+  android14-6.1-lts:
+    tree: android
+    branch: 'android14-6.1-lts'
+
+  android15-6.1:
+    tree: android
+    branch: 'android15-6.1'
+
+  android15-6.6:
+    tree: android
+    branch: 'android15-6.6'
+
+  android15-6.6-lts:
+    tree: android
+    branch: 'android15-6.6-lts'
+
+  collabora-next_for-kernelci:
+    tree: collabora-next
+    branch: 'for-kernelci'
+    variants: *build-variants
+
+  collabora-chromeos-kernel_for-kernelci:
+    tree: collabora-chromeos-kernel
+    branch: 'for-kernelci'
+    variants: *build-variants
+
+  lee_mfd:
+    tree: lee-mfd
+    branch: 'for-mfd-next'
+
+  media_master:
+    tree: media
+    branch: 'master'
+    variants: *build-variants
+
+  media_fixes:
+    tree: media
+    branch: 'fixes'
+    variants: *build-variants
+
+  stable-rt_v4.14-rt:
+    tree: stable-rt
+    branch: 'v4.14-rt'
+
+  stable-rt_v4.14-rt-next:
+    tree: stable-rt
+    branch: 'v4.14-rt-next'
+
+  stable-rt_v4.19-rt:
+    tree: stable-rt
+    branch: 'v4.19-rt'
+
+  stable-rt_v4.19-rt-next:
+    tree: stable-rt
+    branch: 'v4.19-rt-next'
+
+  stable-rt_v5.4-rt:
+    tree: stable-rt
+    branch: 'v5.4-rt'
+
+  stable-rt_v5.4-rt-next:
+    tree: stable-rt
+    branch: 'v5.4-rt-next'
+
+  stable-rt_v5.10-rt:
+    tree: stable-rt
+    branch: 'v5.10-rt'
+
+  stable-rt_v5.10-rt-next:
+    tree: stable-rt
+    branch: 'v5.10-rt-next'
+
+  stable-rt_v5.15-rt:
+    tree: stable-rt
+    branch: 'v5.15-rt'
+
+  stable-rt_v5.15-rt-next:
+    tree: stable-rt
+    branch: 'v5.15-rt-next'
+
+  stable-rt_v6.1-rt:
+    tree: stable-rt
+    branch: 'v6.1-rt'
+
+  stable-rt_v6.1-rt-next:
+    tree: stable-rt
+    branch: 'v6.1-rt-next'
+
+  stable-rt_v6.6-rt:
+    tree: stable-rt
+    branch: 'v6.6-rt'

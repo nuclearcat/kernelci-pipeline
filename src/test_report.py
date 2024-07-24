@@ -17,7 +17,7 @@ import traceback
 
 import kernelci.config
 import kernelci.db
-from kernelci.cli import Args, Command, parse_opts
+from kernelci.legacy.cli import Args, Command, parse_opts
 import jinja2
 
 from kernelci_pipeline.email_sender import EmailSender
@@ -49,24 +49,24 @@ class TestReport(Service):
         }
 
     def _get_job_data(self, checkout_node, job):
-        revision = checkout_node['revision']
+        revision = checkout_node['data']['kernel_revision']
 
-        root_node = self._api.get_nodes({
-            'revision.commit': revision['commit'],
-            'revision.tree': revision['tree'],
-            'revision.branch': revision['branch'],
+        root_node = self._api.node.find({
+            'data.kernel_revision.commit': revision['commit'],
+            'data.kernel_revision.tree': revision['tree'],
+            'data.kernel_revision.branch': revision['branch'],
             'name': job,
         })[0]
-        job_nodes = self._api.count_nodes({
-            'revision.commit': revision['commit'],
-            'revision.tree': revision['tree'],
-            'revision.branch': revision['branch'],
+        job_nodes = self._api.node.count({
+            'data.kernel_revision.commit': revision['commit'],
+            'data.kernel_revision.tree': revision['tree'],
+            'data.kernel_revision.branch': revision['branch'],
             'group': job,
         })
-        failures = self._api.get_nodes({
-            'revision.commit': revision['commit'],
-            'revision.tree': revision['tree'],
-            'revision.branch': revision['branch'],
+        failures = self._api.node.find({
+            'data.kernel_revision.commit': revision['commit'],
+            'data.kernel_revision.tree': revision['tree'],
+            'data.kernel_revision.branch': revision['branch'],
             'group': job,
             'result': 'fail',
         })
@@ -83,11 +83,11 @@ class TestReport(Service):
 
     def _get_jobs(self, root_node):
         jobs = []
-        revision = root_node['revision']
-        nodes = self._api.get_nodes({
-            'revision.commit': revision['commit'],
-            'revision.tree': revision['tree'],
-            'revision.branch': revision['branch']
+        revision = root_node['data']['kernel_revision']
+        nodes = self._api.node.find({
+            'data.kernel_revision.commit': revision['commit'],
+            'data.kernel_revision.tree': revision['tree'],
+            'data.kernel_revision.branch': revision['branch']
         })
         for node in nodes:
             if node['group'] and node['group'] not in jobs:
@@ -112,13 +112,15 @@ class TestReport(Service):
                             loader=jinja2.FileSystemLoader("./config/reports/")
                         )
         template = template_env.get_template("test-report.jinja2")
-        revision = root_node['revision']
+        revision = root_node['data']['kernel_revision']
         results = self._get_results_data(root_node)
         stats = results['stats']
         jobs = results['jobs']
-        subject = f"\
-[STAGING] {revision['tree']}/{revision['branch']} {revision['describe']}: \
-{stats['total']} runs {stats['failures']} failures"
+        # TODO: Sanity-check all referenced values, handle corner cases
+        # properly
+        subject = (f"[STAGING] {revision['tree']}/{revision['branch']} "
+                   f"{revision.get('describe', '')}: "
+                   f"{stats['total']} runs {stats['failures']} failures")
         content = template.render(
             subject=subject, root=root_node, jobs=jobs
         )
@@ -136,7 +138,7 @@ class TestReportLoop(TestReport):
 
     def _setup(self, args):
         return self._api_helper.subscribe_filters({
-            'name': 'checkout',
+            'kind': 'checkout',
             'state': 'done',
         })
 
@@ -149,7 +151,7 @@ class TestReportLoop(TestReport):
         self.log.info("Press Ctrl-C to stop.")
 
         while True:
-            root_node = self._api_helper.receive_event_node(sub_id)
+            root_node, _ = self._api_helper.receive_event_node(sub_id)
             content, subject = self._get_report(root_node)
             self._dump_report(content)
             self._send_report(subject, content)
@@ -162,7 +164,7 @@ class TestReportSingle(TestReport):
 
     def _setup(self, args):
         return {
-            'root_node': self._api.get_node(args.node_id),
+            'root_node': self._api.node.find(args.node_id),
             'dump': args.dump,
             'send': args.send,
         }
@@ -232,6 +234,7 @@ class cmd_run(Command):
 
 if __name__ == '__main__':
     opts = parse_opts('test_report', globals())
-    configs = kernelci.config.load('config/pipeline.yaml')
+    yaml_configs = opts.get_yaml_configs() or 'config'
+    configs = kernelci.config.load(yaml_configs)
     status = opts.command(configs, opts)
     sys.exit(0 if status is True else 1)

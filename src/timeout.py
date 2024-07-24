@@ -14,7 +14,7 @@ import requests
 import kernelci
 import kernelci.config
 import kernelci.db
-from kernelci.cli import Args, Command, parse_opts
+from kernelci.legacy.cli import Args, Command, parse_opts
 
 from base import Service
 
@@ -24,11 +24,11 @@ class TimeoutService(Service):
     def __init__(self, configs, args, name):
         super().__init__(configs, args, name)
         self._pending_states = [
-            state.value for state in self._api.node_states
+            state.value for state in self._api.node.states
             if state != state.DONE
         ]
-        self._user = self._api.whoami()
-        self._username = self._user['profile']['username']
+        self._user = self._api.user.whoami()
+        self._username = self._user['username']
 
     def _setup(self, args):
         return {
@@ -40,7 +40,7 @@ class TimeoutService(Service):
         node_filters = filters.copy() if filters else {}
         for state in self._pending_states:
             node_filters['state'] = state
-            for node in self._api.get_nodes(node_filters):
+            for node in self._api.node.find(node_filters):
                 # Until permissions for the timeout service are fixed:
                 if node['owner'] == self._username:
                     nodes[node['id']] = node
@@ -50,29 +50,53 @@ class TimeoutService(Service):
         nodes_count = 0
 
         for state in self._pending_states:
-            nodes_count += self._api.count_nodes({
+            nodes_count += self._api.node.count({
                 'parent': parent_id, 'state': state
             })
         return nodes_count
 
-    def _get_child_nodes_recursive(self, node, state_filter=None):
-        recursive = {}
+    def _count_running_build_child_nodes(self, checkout_id):
+        nodes_count = 0
+        build_nodes = self._api.node.find({
+            'parent': checkout_id,
+            'kind': 'kbuild'
+        })
+        for build in build_nodes:
+            for state in self._pending_states:
+                nodes_count += self._api.node.count({
+                    'parent': build['id'], 'state': state
+                })
+        return nodes_count
+
+    def _get_child_nodes_recursive(self, node, recursive, state_filter=None):
         child_nodes = self._get_pending_nodes({'parent': node['id']})
         for child_id, child in child_nodes.items():
             if state_filter is None or child['state'] == state_filter:
-                recursive.update(self._get_child_nodes_recursive(
-                    child, state_filter
-                ))
-        return recursive
+                recursive.update({child_id: child})
+                self._get_child_nodes_recursive(
+                    child, recursive, state_filter
+                )
 
-    def _submit_lapsed_nodes(self, lapsed_nodes, state, log=None):
+    def _submit_lapsed_nodes(self, lapsed_nodes, state, mode):
         for node_id, node in lapsed_nodes.items():
             node_update = node.copy()
             node_update['state'] = state
-            if log:
-                self.log.debug(f"{node_id} {log}")
+            self.log.debug(f"{node_id} {mode}")
+            if mode == 'TIMEOUT':
+                if node['kind'] == 'checkout' and node['state'] != 'running':
+                    node_update['result'] = 'pass'
+                else:
+                    if 'data' not in node_update:
+                        node_update['data'] = {}
+                    node_update['result'] = 'incomplete'
+                    node_update['data']['error_code'] = 'node_timeout'
+                    node_update['data']['error_msg'] = 'Node timed-out'
+
+            if node['kind'] == 'checkout' and mode == 'DONE':
+                node_update['result'] = 'pass'
+
             try:
-                self._api.update_node(node_update)
+                self._api.node.update(node_update)
             except requests.exceptions.HTTPError as err:
                 err_msg = json.loads(err.response.content).get("detail", [])
                 self.log.error(err_msg)
@@ -87,7 +111,7 @@ class Timeout(TimeoutService):
         timeout_nodes = {}
         for node_id, node in pending_nodes.items():
             timeout_nodes[node_id] = node
-            timeout_nodes.update(self._get_child_nodes_recursive(node))
+            self._get_child_nodes_recursive(node, timeout_nodes)
         self._submit_lapsed_nodes(timeout_nodes, 'done', 'TIMEOUT')
 
     def _run(self, ctx):
@@ -111,7 +135,7 @@ class Holdoff(TimeoutService):
         super().__init__(configs, args, 'timeout-holdoff')
 
     def _get_available_nodes(self):
-        nodes = self._api.get_nodes({
+        nodes = self._api.node.find({
             'state': 'available',
             'holdoff__lt': datetime.isoformat(datetime.utcnow()),
         })
@@ -123,15 +147,18 @@ class Holdoff(TimeoutService):
         for node_id, node in available_nodes.items():
             running = self._count_running_child_nodes(node_id)
             if running:
-                closing_nodes.update(
-                    self._get_child_nodes_recursive(node, 'available')
-                )
                 closing_nodes[node_id] = node
+                self._get_child_nodes_recursive(node, closing_nodes, 'available')
             else:
-                timeout_nodes.update(
-                    self._get_child_nodes_recursive(node)
-                )
-                timeout_nodes[node_id] = node
+                if node['kind'] == 'checkout':
+                    running = self._count_running_build_child_nodes(node_id)
+                    self.log.debug(f"{node_id} RUNNING build child nodes: {running}")
+                    if not running:
+                        timeout_nodes[node_id] = node
+                        self._get_child_nodes_recursive(node, timeout_nodes)
+                else:
+                    timeout_nodes[node_id] = node
+                    self._get_child_nodes_recursive(node, timeout_nodes)
         self._submit_lapsed_nodes(closing_nodes, 'closing', 'HOLDOFF')
         self._submit_lapsed_nodes(timeout_nodes, 'done', 'DONE')
 
@@ -153,7 +180,7 @@ class Closing(TimeoutService):
         super().__init__(configs, args, 'timeout-closing')
 
     def _get_closing_nodes(self):
-        nodes = self._api.get_nodes({'state': 'closing'})
+        nodes = self._api.node.find({'state': 'closing'})
         return {node['id']: node for node in nodes}
 
     def _check_closing_nodes(self, closing_nodes):
@@ -162,7 +189,13 @@ class Closing(TimeoutService):
             running = self._count_running_child_nodes(node_id)
             self.log.debug(f"{node_id} RUNNING: {running}")
             if not running:
-                done_nodes[node_id] = node
+                if node['kind'] == 'checkout':
+                    running = self._count_running_build_child_nodes(node['id'])
+                    self.log.debug(f"{node_id} RUNNING build child nodes: {running}")
+                    if not running:
+                        done_nodes[node_id] = node
+                else:
+                    done_nodes[node_id] = node
         self._submit_lapsed_nodes(done_nodes, 'done', 'DONE')
 
     def _run(self, ctx):
@@ -206,6 +239,7 @@ class cmd_run(Command):
 
 if __name__ == '__main__':
     opts = parse_opts('timeout', globals())
-    pipeline = kernelci.config.load('config/pipeline.yaml')
+    yaml_configs = opts.get_yaml_configs() or 'config'
+    pipeline = kernelci.config.load(yaml_configs)
     status = opts.command(pipeline, opts)
     sys.exit(0 if status is True else 1)

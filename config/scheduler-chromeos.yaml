@@ -1,0 +1,548 @@
+_anchors:
+
+  amd-platforms: &amd-platforms
+    - acer-R721T-grunt
+    - acer-cp514-3wh-r0qs-guybrush
+    - asus-CM1400CXA-dalboz
+    - dell-latitude-3445-7520c-skyrim
+    - hp-14-db0003na-grunt
+    - hp-11A-G6-EE-grunt
+    - hp-14b-na0052xx-zork
+    - hp-x360-14a-cb0001xx-zork
+    - lenovo-TPad-C13-Yoga-zork
+
+  intel-platforms: &intel-platforms
+    - acer-cb317-1h-c3z6-dedede
+    - acer-cbv514-1h-34uz-brya
+    - acer-chromebox-cxi4-puff
+    - acer-cp514-2h-1130g7-volteer
+    - acer-cp514-2h-1160g7-volteer
+    - asus-C433TA-AJ0005-rammus
+    - asus-C436FA-Flip-hatch
+    - asus-C523NA-A20057-coral
+    - dell-latitude-5300-8145U-arcada
+    - dell-latitude-5400-4305U-sarien
+    - dell-latitude-5400-8665U-sarien
+    - hp-x360-14-G1-sona
+    - hp-x360-12b-ca0010nr-n4020-octopus
+
+  mediatek-platforms: &mediatek-platforms
+    - mt8183-kukui-jacuzzi-juniper-sku16
+    - mt8186-corsola-steelix-sku131072
+    - mt8192-asurada-spherion-r0
+    - mt8195-cherry-tomato-r2
+
+  qualcomm-platforms: &qualcomm-platforms
+    - sc7180-trogdor-kingoftown
+    - sc7180-trogdor-lazor-limozeen
+
+  build-k8s-all: &build-k8s-all
+    event:
+      channel: node
+      name: checkout
+      state: available
+    runtime:
+      name: k8s-all
+
+  lava-job-collabora: &lava-job-collabora
+    runtime:
+      type: lava
+      name: lava-collabora
+
+  test-job-arm64-mediatek: &test-job-arm64-mediatek
+    <<: *lava-job-collabora
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromebook
+      result: pass
+    platforms: *mediatek-platforms
+
+  test-job-arm64-qualcomm: &test-job-arm64-qualcomm
+    <<: *test-job-arm64-mediatek
+    platforms: *qualcomm-platforms
+
+  test-job-chromeos-amd: &test-job-chromeos-amd
+    <<: *lava-job-collabora
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86-chromeos-amd
+      result: pass
+    platforms: *amd-platforms
+
+  test-job-chromeos-intel: &test-job-chromeos-intel
+    <<: *lava-job-collabora
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86-chromeos-intel
+      result: pass
+    platforms: *intel-platforms
+
+  test-job-chromeos-mediatek: &test-job-chromeos-mediatek
+    <<: *test-job-arm64-mediatek
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromeos-mediatek
+      result: pass
+
+  test-job-chromeos-qualcomm: &test-job-chromeos-qualcomm
+    <<: *test-job-arm64-qualcomm
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromeos-qualcomm
+      result: pass
+
+  test-job-x86-amd: &test-job-x86-amd
+    <<: *lava-job-collabora
+    event:
+      channel: node
+      name: kbuild-gcc-12-x86
+      result: pass
+    platforms: *amd-platforms
+
+  test-job-x86-intel: &test-job-x86-intel
+    <<: *test-job-x86-amd
+    platforms: *intel-platforms
+
+scheduler:
+
+  - job: baseline-arm64-mediatek
+    <<: *test-job-arm64-mediatek
+
+  - job: baseline-arm64-qualcomm
+    <<: *test-job-arm64-qualcomm
+
+  - job: baseline-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+
+  - job: baseline-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: baseline-nfs-arm64-mediatek
+    <<: *test-job-arm64-mediatek
+
+  - job: baseline-nfs-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+
+  - job: baseline-nfs-arm64-qualcomm
+    <<: *test-job-arm64-qualcomm
+
+  - job: baseline-nfs-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: baseline-nfs-x86-amd
+    <<: *test-job-chromeos-amd
+
+  - job: baseline-nfs-x86-amd
+    <<: *test-job-x86-amd
+
+  - job: baseline-nfs-x86-intel
+    <<: *test-job-chromeos-intel
+
+  - job: baseline-nfs-x86-intel
+    <<: *test-job-x86-intel
+
+  - job: baseline-x86-amd
+    <<: *test-job-chromeos-amd
+
+  - job: baseline-x86-amd-staging
+    <<: *test-job-chromeos-amd
+    runtime:
+      type: lava
+      name: lava-collabora-staging
+    platforms:
+    - dell-latitude-3445-7520c-skyrim
+
+  - job: baseline-x86-amd
+    <<: *test-job-x86-amd
+
+  - job: baseline-x86-intel
+    <<: *test-job-chromeos-intel
+
+  - job: baseline-x86-intel
+    <<: *test-job-x86-intel
+
+  - job: kbuild-gcc-12-arm64-chromebook
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-chromeos-mediatek
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-arm64-chromeos-qualcomm
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-chromeos-amd
+    <<: *build-k8s-all
+
+  - job: kbuild-gcc-12-x86-chromeos-intel
+    <<: *build-k8s-all
+
+  - job: kselftest-acpi
+    <<: *test-job-x86-intel
+
+  - job: kselftest-dt
+    <<: *lava-job-collabora
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromebook
+      result: pass
+    platforms:
+      - mt8183-kukui-jacuzzi-juniper-sku16
+      - mt8186-corsola-steelix-sku131072
+      - mt8192-asurada-spherion-r0
+      - mt8195-cherry-tomato-r2
+      - sc7180-trogdor-kingoftown
+      - sc7180-trogdor-lazor-limozeen
+
+  - job: kselftest-device-error-logs
+    <<: *lava-job-collabora
+    event:
+      channel: node
+      name: kbuild-gcc-12-arm64-chromebook
+      result: pass
+    platforms: *mediatek-platforms
+
+  - job: kselftest-cpufreq
+    <<: *test-job-x86-intel
+
+  - job: kselftest-cpufreq
+    <<: *test-job-x86-amd
+
+  - job: kselftest-cpufreq
+    <<: *test-job-arm64-qualcomm
+
+  - job: kselftest-cpufreq
+    <<: *test-job-arm64-mediatek
+
+  - job: kselftest-dmabuf-heaps
+    <<: *test-job-x86-intel
+
+  - job: kselftest-dmabuf-heaps
+    <<: *test-job-x86-amd
+
+  - job: kselftest-dmabuf-heaps
+    <<: *test-job-arm64-qualcomm
+
+  - job: kselftest-dmabuf-heaps
+    <<: *test-job-arm64-mediatek
+
+  - job: kselftest-exec
+    <<: *test-job-x86-intel
+
+  - job: kselftest-exec
+    <<: *test-job-x86-amd
+
+  - job: kselftest-exec
+    <<: *test-job-arm64-qualcomm
+
+  - job: kselftest-exec
+    <<: *test-job-arm64-mediatek
+
+  - job: kselftest-iommu
+    <<: *test-job-x86-intel
+
+  - job: kselftest-iommu
+    <<: *test-job-x86-amd
+
+  - job: kselftest-iommu
+    <<: *test-job-arm64-qualcomm
+
+  - job: kselftest-iommu
+    <<: *test-job-arm64-mediatek
+
+#  - job: tast-basic-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-basic-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-basic-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-basic-x86-intel
+#    <<: *test-job-chromeos-intel
+
+  - job: tast-decoder-chromestack-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+
+  - job: tast-decoder-chromestack-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-chromestack-arm64-qualcomm-pre6_7
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-chromestack-x86-amd
+    <<: *test-job-chromeos-amd
+
+  - job: tast-decoder-chromestack-x86-intel
+    <<: *test-job-chromeos-intel
+
+  - job: tast-decoder-v4l2-sl-av1-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+    platforms:
+      - mt8195-cherry-tomato-r2
+
+  - job: tast-decoder-v4l2-sl-h264-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+    platforms:
+      - mt8183-kukui-jacuzzi-juniper-sku16
+      - mt8192-asurada-spherion-r0
+      - mt8195-cherry-tomato-r2
+
+  - job: tast-decoder-v4l2-sl-vp8-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+    platforms:
+      - mt8192-asurada-spherion-r0
+      - mt8195-cherry-tomato-r2
+
+  - job: tast-decoder-v4l2-sl-vp9-arm64-mediatek
+    <<: *test-job-chromeos-mediatek
+    platforms:
+      - mt8192-asurada-spherion-r0
+      - mt8195-cherry-tomato-r2
+
+  - job: tast-decoder-v4l2-sf-h264-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-v4l2-sf-vp8-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-v4l2-sf-vp9-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-v4l2-sf-vp9-arm64-qualcomm-pre6_7
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-v4l2-sf-vp9-extra-arm64-qualcomm
+    <<: *test-job-chromeos-qualcomm
+
+  - job: tast-decoder-v4l2-sf-vp9-extra-arm64-qualcomm-pre6_7
+    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-hardware-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-hardware-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-hardware-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-hardware-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-kernel-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-kernel-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-kernel-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-kernel-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-mm-decode-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+#    platforms:
+#      - mt8192-asurada-spherion-r0
+#      - mt8195-cherry-tomato-r2
+
+#  - job: tast-mm-decode-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-mm-misc-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-mm-misc-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-mm-misc-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-mm-misc-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-perf-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-perf-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-perf-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-perf-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-perf-long-duration-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+ # - job: tast-perf-long-duration-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-perf-long-duration-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-perf-long-duration-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-platform-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-platform-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-platform-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-platform-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-power-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-power-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-power-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-power-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-sound-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-sound-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-sound-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-sound-x86-intel
+#    <<: *test-job-chromeos-intel
+
+#  - job: tast-ui-arm64-mediatek
+#    <<: *test-job-chromeos-mediatek
+
+#  - job: tast-ui-arm64-qualcomm
+#    <<: *test-job-chromeos-qualcomm
+
+#  - job: tast-ui-x86-amd
+#    <<: *test-job-chromeos-amd
+
+#  - job: tast-ui-x86-intel
+#    <<: *test-job-chromeos-intel
+
+  - job: rt-tests-cyclicdeadline
+    <<: *test-job-x86-intel
+
+  - job: rt-tests-cyclicdeadline
+    <<: *test-job-x86-amd
+
+  - job: rt-tests-cyclicdeadline
+    <<: *test-job-arm64-qualcomm
+
+  - job: rt-tests-cyclicdeadline
+    <<: *test-job-arm64-mediatek
+
+  - job: rt-tests-cyclictest
+    <<: *test-job-x86-intel
+
+  - job: rt-tests-cyclictest
+    <<: *test-job-x86-amd
+
+  - job: rt-tests-cyclictest
+    <<: *test-job-arm64-qualcomm
+
+  - job: rt-tests-cyclictest
+    <<: *test-job-arm64-mediatek
+
+  - job: rt-tests-rtla-osnoise
+    <<: *test-job-x86-intel
+
+  - job: rt-tests-rtla-osnoise
+    <<: *test-job-x86-amd
+
+  - job: rt-tests-rtla-osnoise
+    <<: *test-job-arm64-qualcomm
+
+  - job: rt-tests-rtla-osnoise
+    <<: *test-job-arm64-mediatek
+
+  - job: rt-tests-rtla-timerlat
+    <<: *test-job-x86-intel
+
+  - job: rt-tests-rtla-timerlat
+    <<: *test-job-x86-amd
+
+  - job: rt-tests-rtla-timerlat
+    <<: *test-job-arm64-qualcomm
+
+  - job: rt-tests-rtla-timerlat
+    <<: *test-job-arm64-mediatek
+
+  - job: v4l2-decoder-conformance-av1
+    <<: *test-job-arm64-mediatek
+    platforms:
+      - mt8195-cherry-tomato-r2
+
+  - job: v4l2-decoder-conformance-av1-chromium-10bit
+    <<: *test-job-arm64-mediatek
+    platforms:
+      - mt8195-cherry-tomato-r2
+
+  - job: v4l2-decoder-conformance-h264
+    <<: *test-job-arm64-mediatek
+
+  - job: v4l2-decoder-conformance-h264-frext
+    <<: *test-job-arm64-mediatek
+
+  - job: v4l2-decoder-conformance-h265
+    <<: *test-job-arm64-mediatek
+    platforms:
+      - mt8195-cherry-tomato-r2
+
+  - job: v4l2-decoder-conformance-vp8
+    <<: *test-job-arm64-mediatek
+    platforms:
+      - mt8186-corsola-steelix-sku131072
+      - mt8192-asurada-spherion-r0
+      - mt8195-cherry-tomato-r2
+
+  - job: v4l2-decoder-conformance-vp9
+    <<: *test-job-arm64-mediatek
+    platforms:
+      - mt8186-corsola-steelix-sku131072
+      - mt8192-asurada-spherion-r0
+      - mt8195-cherry-tomato-r2
+
+  - job: v4l2-decoder-conformance-h264
+    <<: *test-job-arm64-qualcomm
+
+  - job: v4l2-decoder-conformance-h264-frext
+    <<: *test-job-arm64-qualcomm
+
+  - job: v4l2-decoder-conformance-h265
+    <<: *test-job-arm64-qualcomm
+
+  - job: v4l2-decoder-conformance-vp8
+    <<: *test-job-arm64-qualcomm
+
+  - job: v4l2-decoder-conformance-vp9
+    <<: *test-job-arm64-qualcomm
+
+  - job: watchdog-reset-arm64-mediatek
+    <<: *test-job-arm64-mediatek
+
+  - job: watchdog-reset-arm64-qualcomm
+    <<: *test-job-arm64-qualcomm
+
+  - job: watchdog-reset-x86-amd
+    <<: *test-job-x86-amd
+
+  - job: watchdog-reset-x86-intel
+    <<: *test-job-x86-intel
+    platforms:
+      - hp-x360-12b-ca0010nr-n4020-octopus

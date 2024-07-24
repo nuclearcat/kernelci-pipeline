@@ -1,0 +1,169 @@
+_anchors:
+
+  arm64-chromebook-device: &arm64-chromebook-device
+    arch: arm64
+    boot_method: depthcharge
+    params: &arm64-chromebook-device-params
+      flash_kernel:
+        url: https://storage.chromeos.kernelci.org/images/kernel/v6.1-{mach}
+        image: 'kernel/Image'
+      nfsroot: https://storage.chromeos.kernelci.org/images/rootfs/debian/bookworm-cros-flash/20240422.0/{debarch}
+      tast_tarball: https://storage.chromeos.kernelci.org/images/rootfs/chromeos/chromiumos-{base_name}/20240514.0/{debarch}/tast.tgz
+    rules: &arm64-chromebook-device-rules
+      defconfig:
+        - '!allnoconfig'
+        - '!allmodconfig'
+      fragments:
+        - 'arm64-chromebook'
+
+  x86-chromebook-device: &x86-chromebook-device
+    arch: x86_64
+    boot_method: depthcharge
+    mach: x86
+    params:
+      <<: *arm64-chromebook-device-params
+      flash_kernel:
+        url: https://storage.chromeos.kernelci.org/images/kernel/cros-20230815-amd64/clang-14
+        image: 'kernel/bzImage'
+    rules:
+      <<: *arm64-chromebook-device-rules
+      fragments:
+        - 'x86-board'
+
+platforms:
+  acer-R721T-grunt: &chromebook-grunt-device
+    <<: *x86-chromebook-device
+    base_name: grunt
+
+  acer-cb317-1h-c3z6-dedede:
+    <<: *x86-chromebook-device
+    base_name: dedede
+
+  acer-cbv514-1h-34uz-brya:
+    <<: *x86-chromebook-device
+    base_name: brya
+
+  acer-chromebox-cxi4-puff:
+    <<: *x86-chromebook-device
+    base_name: puff
+
+  acer-cp514-2h-1130g7-volteer: &chromebook-volteer-device
+    <<: *x86-chromebook-device
+    base_name: volteer
+
+  acer-cp514-2h-1160g7-volteer: *chromebook-volteer-device
+
+  acer-cp514-3wh-r0qs-guybrush:
+    <<: *x86-chromebook-device
+    base_name: guybrush
+
+  asus-C433TA-AJ0005-rammus:
+    <<: *x86-chromebook-device
+    base_name: rammus
+
+  asus-C436FA-Flip-hatch:
+    <<: *x86-chromebook-device
+    base_name: hatch
+
+  asus-C523NA-A20057-coral:
+    <<: *x86-chromebook-device
+    base_name: coral
+
+  asus-CM1400CXA-dalboz: &chromebook-zork-device
+    <<: *x86-chromebook-device
+    base_name: zork
+
+  dell-latitude-3445-7520c-skyrim:
+    <<: *x86-chromebook-device
+    base_name: skyrim
+
+  dell-latitude-5300-8145U-arcada: &chromebook-sarien-device
+    <<: *x86-chromebook-device
+    base_name: sarien
+
+  dell-latitude-5400-4305U-sarien: *chromebook-sarien-device
+  dell-latitude-5400-8665U-sarien: *chromebook-sarien-device
+  hp-14-db0003na-grunt: *chromebook-grunt-device
+  hp-11A-G6-EE-grunt: *chromebook-grunt-device
+  hp-14b-na0052xx-zork: *chromebook-zork-device
+
+  hp-x360-14-G1-sona:
+    <<: *x86-chromebook-device
+    base_name: nami
+
+  hp-x360-12b-ca0010nr-n4020-octopus:
+    <<: *x86-chromebook-device
+    base_name: octopus
+
+  hp-x360-14a-cb0001xx-zork: *chromebook-zork-device
+  lenovo-TPad-C13-Yoga-zork: *chromebook-zork-device
+
+  mt8183-kukui-jacuzzi-juniper-sku16: &mediatek-chromebook-device
+    <<: *arm64-chromebook-device
+    base_name: jacuzzi
+    mach: mediatek
+    dtb: dtbs/mediatek/mt8183-kukui-jacuzzi-juniper-sku16.dtb
+    rules:
+      <<: *arm64-chromebook-device-rules
+      min_version:
+        version: 6
+        patchlevel: 1
+
+  mt8186-corsola-steelix-sku131072:
+    <<: *mediatek-chromebook-device
+    base_name: corsola
+    dtb: dtbs/mediatek/mt8186-corsola-steelix-sku131072.dtb
+    params:
+      <<: *arm64-chromebook-device-params
+      flash_kernel:
+        url: https://storage.chromeos.kernelci.org/images/rootfs/chromeos/chromiumos-corsola/20240514.0/arm64
+        image: 'Image'
+    context:
+      test_character_delay: 10
+    rules:
+      <<: *arm64-chromebook-device-rules
+      min_version:
+        version: 6
+        patchlevel: 9
+
+  mt8192-asurada-spherion-r0:
+    <<: *mediatek-chromebook-device
+    base_name: asurada
+    dtb: dtbs/mediatek/mt8192-asurada-spherion-r0.dtb
+    context:
+      test_character_delay: 10
+    rules:
+      <<: *arm64-chromebook-device-rules
+      min_version:
+        version: 6
+        patchlevel: 4
+
+  mt8195-cherry-tomato-r2:
+    <<: *mediatek-chromebook-device
+    base_name: cherry
+    dtb: dtbs/mediatek/mt8195-cherry-tomato-r2.dtb
+    context:
+      test_character_delay: 10
+    rules:
+      <<: *arm64-chromebook-device-rules
+      min_version:
+        version: 6
+        patchlevel: 7
+
+  sc7180-trogdor-kingoftown: &trogdor-chromebook-device
+    <<: *arm64-chromebook-device
+    base_name: trogdor
+    mach: qcom
+    dtb:
+      - dtbs/qcom/sc7180-trogdor-kingoftown.dtb
+      - dtbs/qcom/sc7180-trogdor-kingoftown-r1.dtb
+    params:
+      <<: *arm64-chromebook-device-params
+      flash_kernel:
+        url: https://storage.chromeos.kernelci.org/images/kernel/v6.1-qualcomm
+        image: 'kernel/Image'
+        dtb: 'dtbs/qcom/sc7180-trogdor-kingoftown-r1.dtb'
+
+  sc7180-trogdor-lazor-limozeen:
+    <<: *trogdor-chromebook-device
+    dtb: dtbs/qcom/sc7180-trogdor-lazor-limozeen-nots-r5.dtb

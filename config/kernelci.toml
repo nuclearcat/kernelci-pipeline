@@ -6,22 +6,31 @@ verbose = true
 [trigger]
 poll_period = 0
 startup_delay = 3
-timeout = 60
+timeout = 180
 
 [tarball]
 kdir = "/home/kernelci/data/src/linux"
 output = "/home/kernelci/data/output"
 storage_config = "docker-host"
 
+[patchset]
+kdir = "/home/kernelci/data/src/linux-patchset"
+output = "/home/kernelci/data/output"
+storage_config = "docker-host"
+patchset_tmp_file_prefix = "kernel-patch"
+patchset_short_hash_len = 13
+allowed_domains = ["patchwork.kernel.org"]
+polling_delay_secs = 30
+
 [scheduler]
-output = "/home/kernelci/output"
+output = "/home/kernelci/data/output"
 
 [notifier]
 
 [send_kcidb]
 kcidb_topic_name = "playground_kcidb_new"
 kcidb_project_id = "kernelci-production"
-origin = "kernelci"
+origin = "maestro"
 
 [test_report]
 email_sender = "bot@kernelci.org"
@@ -36,3 +45,11 @@ storage_cred = "/home/kernelci/data/ssh/id_rsa_tarball"
 
 [storage.k8s-host]
 storage_cred = "/home/kernelci/data/ssh/id_rsa_tarball"
+
+#[runtime.lava-collabora]
+#runtime_token = "REPLACE-LAVA-TOKEN-GENERATED-BY-LAB-LAVA-COLLABORA"
+#callback_token = "REPLACE-LAVA-TOKEN-GENERATED-BY-LAB-LAVA-COLLABORA"
+
+#[runtime.lava-collabora-early-access]
+#runtime_token = "REPLACE-LAVA-TOKEN-GENERATED-BY-LAB-LAVA-COLLABORA-EARLY-ACCESS"
+#callback_token = "REPLACE-LAVA-TOKEN-GENERATED-BY-LAB-LAVA-COLLABORA"

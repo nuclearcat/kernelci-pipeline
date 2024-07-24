@@ -13,21 +13,20 @@ import sys
 
 import kernelci
 import kernelci.config
-from kernelci.cli import Args, Command, parse_opts
+from kernelci.legacy.cli import Args, Command, parse_opts
 
 from base import Service
 
 
 class Monitor(Service):
-    LOG_FMT = \
-        "{time:26s}  {commit:12s}  {id:24} {state:9s}  {result:8s}  {name}"
+    LOG_FMT = ("{time:26s}  {kind:15s} {commit:12s}  {id:24s} "
+               "{state:9s}  {result:8s}  {name}")
 
     def __init__(self, configs, args):
         super().__init__(configs, args, 'monitor')
         self._log_titles = self.LOG_FMT.format(
-            time="Time", commit="Commit", id="Node Id", state="State",
-            result="Result", name="Name"
-        )
+            time="Time", kind="Kind", commit="Commit", id="Node Id",
+            state="State", result="Result", name="Name")
 
     def _setup(self, args):
         return self._api.subscribe('node')
@@ -61,12 +60,18 @@ class Monitor(Service):
             event = self._api.receive_event(sub_id)
             obj = event.data
             dt = datetime.datetime.fromisoformat(event['time'])
+            try:
+                commit = obj['data']['kernel_revision']['commit'][:12]
+            except (KeyError, TypeError):
+                commit = str(None)
+            result = result_map[obj['result']] if obj['result'] else str(None)
             print(self.LOG_FMT.format(
                 time=dt.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                commit=obj['revision']['commit'][:12],
+                kind=obj['kind'],
+                commit=commit,
                 id=obj['id'],
                 state=state_map[obj['state']],
-                result=result_map[obj['result']],
+                result=result,
                 name=obj['name']
             ), flush=True)
 
@@ -83,6 +88,7 @@ class cmd_run(Command):
 
 if __name__ == '__main__':
     opts = parse_opts('monitor', globals())
-    configs = kernelci.config.load('config/pipeline.yaml')
+    yaml_configs = opts.get_yaml_configs() or 'config'
+    configs = kernelci.config.load(yaml_configs)
     status = opts.command(configs, opts)
     sys.exit(0 if status is True else 1)

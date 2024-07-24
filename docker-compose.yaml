@@ -20,6 +20,23 @@ services:
     volumes: &base-volumes
       - './src:/home/kernelci/pipeline'
       - './config:/home/kernelci/config'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  result_summary:
+    container_name: 'kernelci-pipeline-result-summary'
+    image: 'kernelci/staging-kernelci'
+    env_file: ['.env']
+    stop_signal: 'SIGINT'
+    entrypoint:
+      - './pipeline/result_summary.py'
+      - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
+      - 'run'
+      - '--config=${CONFIG:-/home/kernelci/config/result-summary.yaml}'
+    volumes:
+      - './src:/home/kernelci/pipeline'
+      - './config:/home/kernelci/config'
+      - './data/output:/home/kernelci/data/output'
 
   scheduler: &scheduler
     container_name: 'kernelci-pipeline-scheduler'
@@ -34,10 +51,12 @@ services:
     volumes:
       - './src:/home/kernelci/pipeline'
       - './config:/home/kernelci/config'
-      - './data/output:/home/kernelci/output'
+      - './data/output:/home/kernelci/data/output'
       - './data/k8s-credentials/.kube:/home/kernelci/.kube'
       - './data/k8s-credentials/.config/gcloud:/home/kernelci/.config/gcloud'
       - './data/k8s-credentials/.azure:/home/kernelci/.azure'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   scheduler-docker:
     <<: *scheduler
@@ -55,15 +74,25 @@ services:
       - './data/output:/home/kernelci/data/output'
       - './.docker-env:/home/kernelci/.docker-env'
       - '/var/run/docker.sock:/var/run/docker.sock'  # Docker-in-Docker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   scheduler-lava:
     <<: *scheduler
     container_name: 'kernelci-pipeline-scheduler-lava'
     command:
       - './pipeline/scheduler.py'
-      - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.conf}'
+      - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'loop'
-      - '--runtimes=lava-collabora'
+      - '--runtimes'
+      - 'lava-collabora'
+      - 'lava-collabora-staging'
+      - 'lava-broonie'
+      - 'lava-baylibre'
+      - 'lava-qualcomm'
+      - 'lava-cip'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   scheduler-k8s:
     <<: *scheduler
@@ -73,7 +102,11 @@ services:
       - './pipeline/scheduler.py'
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'loop'
-      - '--runtimes=k8s-gke-eu-west4'
+      - '--runtimes'
+      - 'k8s-gke-eu-west4'
+      - 'k8s-all'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   tarball:
     <<: *base-service
@@ -88,6 +121,8 @@ services:
       - './data/ssh:/home/kernelci/data/ssh'
       - './data/src:/home/kernelci/data/src'
       - './data/output:/home/kernelci/data/output'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   trigger:
     <<: *base-service
@@ -96,6 +131,8 @@ services:
       - './pipeline/trigger.py'
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'run'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   regression_tracker:
     <<: *base-service
@@ -106,6 +143,8 @@ services:
       - '/home/kernelci/pipeline/regression_tracker.py'
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'run'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   test_report:
     <<: *base-service
@@ -116,6 +155,8 @@ services:
       - '/home/kernelci/pipeline/test_report.py'
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'loop'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   timeout:
     <<: *base-service
@@ -127,6 +168,8 @@ services:
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'run'
       - '--mode=timeout'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   timeout-closing:
     <<: *base-service
@@ -138,6 +181,8 @@ services:
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'run'
       - '--mode=closing'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   timeout-holdoff:
     <<: *base-service
@@ -149,3 +194,20 @@ services:
       - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
       - 'run'
       - '--mode=holdoff'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  patchset:
+    <<: *base-service
+    container_name: 'kernelci-pipeline-patchset'
+    command:
+      - './pipeline/patchset.py'
+      - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
+      - 'run'
+    volumes:
+      - './src:/home/kernelci/pipeline'
+      - './config:/home/kernelci/config'
+      - './data/ssh:/home/kernelci/data/ssh'
+      - './data/src:/home/kernelci/data/src'
+      - './data/output:/home/kernelci/data/output'
+
