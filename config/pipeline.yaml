@@ -15,9 +15,7 @@ _anchors:
     arch: arm
 
   baseline: &baseline-job
-    template: baseline.jinja2
     kind: job
-    kcidb_test_suite: boot
 
   checkout: &checkout-event
     channel: node
