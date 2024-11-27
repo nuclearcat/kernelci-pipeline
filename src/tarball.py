@@ -233,14 +233,15 @@ git archive --format=tar --prefix={prefix}/ HEAD | gzip > {tarball_path}
                 config_tree, self._service_config.kdir
             )
             version = self._get_version_from_describe()
-            tarball_name = '-'.join([
+            tarball_name_raw = '-'.join([
                 'linux',
                 config_tree,
                 config_branch,
                 describe
             ])
-            # replace / by _ in name
-            tarball_name = tarball_name.replace('/', '_')
+            # replace non-filename characters by underscore
+            # also limit filename to 128 characters
+            tarball_name = re.sub(r'[^\w\.-]', '_', tarball_name_raw)[:128]
             tarball_path = self._make_tarball(
                 self._service_config.kdir,
                 tarball_name
