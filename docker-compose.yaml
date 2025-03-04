@@ -150,30 +150,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  regression_tracker:
-    <<: *base-service
-    container_name: 'kernelci-pipeline-regression_tracker'
-    command:
-      - '/usr/bin/env'
-      - 'python3'
-      - '/home/kernelci/pipeline/src/regression_tracker.py'
-      - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
-      - 'run'
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  test_report:
-    <<: *base-service
-    container_name: 'kernelci-pipeline-test_report'
-    command:
-      - '/usr/bin/env'
-      - 'python3'
-      - '/home/kernelci/pipeline/src/test_report.py'
-      - '--settings=${KCI_SETTINGS:-/home/kernelci/config/kernelci.toml}'
-      - 'loop'
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
   timeout:
     <<: *base-service
     container_name: 'kernelci-pipeline-timeout'
