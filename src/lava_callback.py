@@ -39,6 +39,7 @@ YAMLCFG = kernelci.config.load_yaml('config')
 
 app = FastAPI()
 executor = ThreadPoolExecutor(max_workers=16)
+logging.basicConfig(level=logging.INFO)
 
 
 class ManualCheckout(BaseModel):
