@@ -22,7 +22,6 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 import kernelci.api.helper
-import kernelci.config
 import kernelci.runtime.lava
 import kernelci.storage
 import kernelci.config
