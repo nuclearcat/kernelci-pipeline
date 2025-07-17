@@ -137,10 +137,6 @@ class KCIDBBridge(Service):
                 client.submit(revision)
             else:
                 self.log.error("Aborting, invalid data")
-                try:
-                    kcidb.io.SCHEMA.validate(revision)
-                except Exception as exc:
-                    self.log.error(f"Validation error: {str(exc)}")
 
     @staticmethod
     def _set_timezone(created_timestamp):
