@@ -869,6 +869,9 @@ in {runtime}",
             return None
 
         local_file = self._cached_fetch(parsed_node['log_url'])
+        if not local_file:
+            self.log.warning(f"Failed to fetch log file for {parsed_node['id']}")
+            return None
         local_url = f"file://{local_file}"
 
         parsed_fail, new_status = generate_issues_and_incidents(
