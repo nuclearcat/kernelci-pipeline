@@ -109,7 +109,22 @@ class Scheduler(Service):
             self._api_helper.unsubscribe_filters(sub_id)
         self._cleanup_paths()
 
+    def _update_node_with_error(self, node, result, error_code, error_msg=None):
+        """Helper method to update node state with error
+        information and handle HTTP errors"""
+        node['state'] = 'done'
+        node['result'] = result
+        node['data']['error_code'] = error_code
+        if error_msg:
+            node['data']['error_msg'] = error_msg
+        try:
+            self._api.node.update(node)
+        except requests.exceptions.HTTPError as err:
+            err_msg = json.loads(err.response.content).get("detail", [])
+            self.log.error(err_msg)
+
     def _run_job(self, job_config, runtime, platform, input_node):
+        tmp = None
         try:
             node = self._api_helper.create_job_node(job_config,
                                                     input_node,
@@ -157,23 +172,28 @@ class Scheduler(Service):
                 job_config.name,
                 "Invalid job parameters, aborting...",
             ]))
-            node['state'] = 'done'
-            node['result'] = 'incomplete'
-            node['data']['error_code'] = 'invalid_job_params'
-            try:
-                self._api.node.update(node)
-            except requests.exceptions.HTTPError as err:
-                err_msg = json.loads(err.response.content).get("detail", [])
-                self.log.error(err_msg)
+            self._update_node_with_error(node, 'incomplete', 'invalid_job_params')
             return
         # Process potential f-strings in `params` with configured job params
         # and platform attributes
-        kernel_revision = job_node['data']['kernel_revision']['version']
-        extra_args = {
-            'krev': f"{kernel_revision['version']}.{kernel_revision['patchlevel']}"
-        }
-        extra_args.update(job.config.params)
-        params = job.platform_config.format_params(params, extra_args)
+        try:
+            kernel_revision = job_node['data']['kernel_revision']['version']
+            extra_args = {
+                'krev': f"{kernel_revision['version']}.{kernel_revision['patchlevel']}"
+            }
+            extra_args.update(job.config.params)
+            params = job.platform_config.format_params(params, extra_args)
+        except KeyError as e:
+            self.log.error(' '.join([
+                node['id'],
+                runtime.config.name,
+                platform.name,
+                job_config.name,
+                'Failed to get kernel revision data:',
+                str(e),
+            ]))
+            self._update_node_with_error(node, 'incomplete', 'missing_kernel_revision')
+            return
         # we experience sometimes that the job is not created properly
         # due exception in the runtime.generate method
         try:
@@ -187,15 +207,7 @@ class Scheduler(Service):
                 'Failed to generate job data:',
                 str(e),
             ]))
-            node['state'] = 'done'
-            node['result'] = 'incomplete'
-            node['data']['error_code'] = 'job_generation_error'
-            node['data']['error_msg'] = str(e)
-            try:
-                self._api.node.update(node)
-            except requests.exceptions.HTTPError as err:
-                err_msg = json.loads(err.response.content).get("detail", [])
-                self.log.error(err_msg)
+            self._update_node_with_error(node, 'incomplete', 'job_generation_error', str(e))
             return
 
         if not data:
@@ -206,14 +218,7 @@ class Scheduler(Service):
                 job_config.name,
                 "Failed to generate job definition, aborting...",
             ]))
-            node['state'] = 'done'
-            node['result'] = 'fail'
-            node['data']['error_code'] = 'job_generation_error'
-            try:
-                self._api.node.update(node)
-            except requests.exceptions.HTTPError as err:
-                err_msg = json.loads(err.response.content).get("detail", [])
-                self.log.error(err_msg)
+            self._update_node_with_error(node, 'fail', 'job_generation_error')
             return
         tmp = tempfile.TemporaryDirectory(dir=self._output)
         output_file = runtime.save_file(data, tmp.name, params)
@@ -228,15 +233,10 @@ class Scheduler(Service):
                 'submit error:',
                 str(e),
             ]))
-            node['state'] = 'done'
-            node['result'] = 'incomplete'
-            node['data']['error_code'] = 'submit_error'
-            node['data']['error_msg'] = str(e)
-            try:
-                self._api.node.update(node)
-            except requests.exceptions.HTTPError as err:
-                err_msg = json.loads(err.response.content).get("detail", [])
-                self.log.error(err_msg)
+            self._update_node_with_error(node, 'incomplete', 'submit_error', str(e))
+            finally:
+                if tmp:
+                    tmp.cleanup()
             return
 
         job_id = str(runtime.get_job_id(running_job))
