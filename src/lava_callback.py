@@ -292,7 +292,7 @@ def async_job_submit(api_helper, node_id, job_callback):
         if name.startswith("artifact-upload:") and state == 'pass':
             artifact = name.split(':', 2)
             if len(artifact) != 3:
-                logger.warn(f"Failed to extract artifact name and URL from {result}")
+                logger.warn(f"Failed to extract artifact name and URL from {name}")
                 continue
             job_node['artifacts'][artifact[1]] = artifact[2]
             logger.info(f"Artifact {artifact[1]} added with URL {artifact[2]}")
