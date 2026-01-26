@@ -11,6 +11,7 @@ import copy
 import datetime
 import os
 import re
+import shlex
 import subprocess
 import sys
 import json
@@ -19,7 +20,7 @@ import time
 import kernelci
 import kernelci.build
 import kernelci.config
-from kernelci.legacy.cli import Args, Command, parse_opts
+from cli import Args, Command, parse_opts, PipelineArgs
 import kernelci.storage
 
 from base import Service
@@ -30,6 +31,7 @@ KVER_RE = re.compile(
     r'(\.(?P<sublevel>[\d]+))?'
     r'(?P<extra>.*)?'
 )
+COMMIT_RE = re.compile(r'^[0-9a-f]{7,40}$')
 
 
 class Tarball(Service):
@@ -72,15 +74,24 @@ git archive --format=tar --prefix={prefix}/ HEAD | gzip > {tarball_path}
     def _find_build_commit(self, node):
         revision = node['data'].get('kernel_revision')
         commit = revision.get('commit')
+        if not commit or not COMMIT_RE.match(commit):
+            self.log.error(f"Invalid commit id in node: {commit!r}")
+            return None
         return commit
 
     def _checkout_commitid(self, commitid):
+        if not commitid or not COMMIT_RE.match(commitid):
+            raise ValueError(f"Invalid commit id: {commitid!r}")
         self.log.info(f"Checking out commit {commitid}")
         # i might need something from kernelci.build
         # but i prefer to implement it myself
         cwd = os.getcwd()
         os.chdir(self._service_config.kdir)
-        kernelci.shell_cmd(f"git checkout {commitid}", self._service_config.kdir)
+        # Commit is validated as hex to prevent command injection.
+        kernelci.shell_cmd(
+            f"git checkout {shlex.quote(commitid)}",
+            self._service_config.kdir,
+        )
         os.chdir(cwd)
         self.log.info("Commit checked out")
 
@@ -288,10 +299,7 @@ class cmd_run(Command):
     ]
     opt_args = [
         Args.verbose, Args.storage_cred,
-        {
-            'name': '--name',
-            'help': "Name of pipeline instance",
-        },
+        PipelineArgs.name,
     ]
 
     def __call__(self, configs, args):

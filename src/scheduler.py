@@ -27,7 +27,7 @@ import kernelci.context
 import kernelci.runtime
 import kernelci.scheduler
 import kernelci.storage
-from kernelci.legacy.cli import Args, Command, parse_opts
+from cli import Args, Command, parse_opts, PipelineArgs, create_kcontext
 
 from base import Service
 
@@ -114,23 +114,21 @@ class Scheduler(Service):
         self._stop_thread = False
         self._watchdog_timestamps = {}  # Thread name -> last update timestamp
         self._watchdog_lock = threading.Lock()
-        # Backup is disabled by default, enable via BACKUP_FILE_LIFETIME env variable (in seconds)
-        self._backup_file_lifetime = int(os.getenv('BACKUP_FILE_LIFETIME', '0'))
+        # Backup is disabled by default, enable via --backup-file-lifetime argument
+        self._backup_file_lifetime = getattr(args, 'backup_file_lifetime', 0) or 0
         self._last_backup_cleanup = 0
         if self._backup_file_lifetime > 0:
             self.log.info(f"Job backup enabled: lifetime={self._backup_file_lifetime}s, "
                           f"dir={BACKUP_DIR}")
         else:
-            self.log.info("Job backup disabled (set BACKUP_FILE_LIFETIME env var to enable)")
+            self.log.info("Job backup disabled (use --backup-file-lifetime to enable)")
 
         # Initialize KContext for runtime configuration and secrets management
-
-        self._kcontext = kernelci.context.KContext(
-            parse_cli=True,
-        )
+        # Uses pre-parsed CLI arguments to avoid dual sys.argv parsing
+        self._kcontext = create_kcontext(args)
 
         # Initialize runtimes with KContext
-        # Get runtime names from KContext (parsed from CLI --runtimes argument)
+        # Get runtime names from args (already parsed by CLI framework)
         runtime_names = self._kcontext.get_runtimes()
         runtime_types = self._kcontext.get_runtime_types()
         self.log.info(f"Runtimes from KContext: {runtime_names}")
@@ -775,21 +773,11 @@ class cmd_loop(Command):
     args = [Args.api_config, Args.output]
     opt_args = [
         Args.verbose,
-        {
-            'name': '--runtimes',
-            'nargs': '*',
-            'help': "Runtime environments to use, all by default",
-        },
-        {
-            'name': '--runtime-type',
-            'nargs': '*',
-            'help': "Runtime types to use (lava, kubernetes, docker, shell, pull_labs)",
-        },
-        {
-            'name': '--name',
-            'help': "Service name used to create log file",
-            'required': True
-        },
+        PipelineArgs.runtimes,
+        PipelineArgs.runtime_type,
+        {**PipelineArgs.name, 'required': True},
+        PipelineArgs.image_prefix,
+        PipelineArgs.backup_file_lifetime,
     ]
 
     def __call__(self, configs, args):

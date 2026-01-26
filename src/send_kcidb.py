@@ -24,7 +24,7 @@ import os
 import kernelci
 import kernelci.config
 from kernelci.config.runtime import RuntimeLAVA
-from kernelci.legacy.cli import Args, Command, parse_opts
+from cli import Args, Command, parse_opts, PipelineArgs
 import kcidb
 from kernelci_pipeline.logspec_api import generate_issues_and_incidents
 
@@ -922,25 +922,13 @@ in {runtime}",
 
 
 class cmd_run(Command):
-    help = "Listen for events and send them to KCDIB"
+    help = "Listen for events and send them to KCIDB"
     args = [
         Args.api_config,
-        {
-            'name': '--kcidb-topic-name',
-            'help': "KCIDB topic name",
-        },
-        {
-            'name': '--kcidb-project-id',
-            'help': "KCIDB project ID",
-        },
-        {
-            'name': '--name',
-            'help': "Name of pipeline instance",
-        },
-        {
-            'name': '--origin',
-            'help': "CI system identifier",
-        },
+        PipelineArgs.kcidb_topic_name,
+        PipelineArgs.kcidb_project_id,
+        PipelineArgs.name,
+        PipelineArgs.origin,
     ]
 
     def __call__(self, configs, args):

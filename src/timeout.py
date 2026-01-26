@@ -13,7 +13,7 @@ import requests
 
 import kernelci
 import kernelci.config
-from kernelci.legacy.cli import Args, Command, parse_opts
+from cli import Args, Command, parse_opts, PipelineArgs
 
 from base import Service
 
@@ -198,16 +198,8 @@ class cmd_run(Command):
     help = "Set node state to done if maximum wait time is over"
     args = [
         Args.api_config,
-        {
-            'name': '--poll-period',
-            'type': int,
-            'help': "Polling period in seconds",
-            'default': 60,
-        },
-        {
-            'name': '--mode',
-            'choices': MODES.keys(),
-        },
+        {**PipelineArgs.poll_period, 'default': 60},
+        PipelineArgs.mode,
     ]
 
     def __call__(self, configs, args):

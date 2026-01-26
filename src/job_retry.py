@@ -7,7 +7,7 @@
 
 import sys
 import kernelci.config
-from kernelci.legacy.cli import Args, Command, parse_opts
+from cli import Args, Command, parse_opts
 
 from base import Service
 

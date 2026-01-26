@@ -15,7 +15,7 @@ import time
 import kernelci.build
 import kernelci.config
 
-from kernelci.legacy.cli import Args, Command, parse_opts
+from cli import Args, Command, parse_opts, PipelineArgs
 import requests
 import hashlib
 
@@ -243,37 +243,12 @@ class cmd_run(Command):
         Args.api_config,
     ]
     opt_args = [
-        {
-            'name': '--poll-period',
-            'type': int,
-            'help': "Polling period in seconds, disabled when set to 0",
-        },
-        {
-            'name': '--force',
-            'action': 'store_true',
-            'help': "Always create a new checkout node",
-        },
-        {
-            'name': '--name',
-            'help': "Name of pipeline instance",
-        },
-        {
-            'name': '--startup-delay',
-            'type': int,
-            'help': "Delay loop at startup by a number of seconds",
-        },
-        {
-            'name': '--timeout',
-            'type': float,
-            'help': "Timeout minutes for checkout node",
-        },
-        {
-            'name': '--trees',
-            'help': "Exclude or include certain trees (default: all), " +
-                    "!kernelci for all except kernelci" +
-                    "kernelci for only kernelci" +
-                    "!kernelci,linux not kernelci and not linux",
-        },
+        PipelineArgs.poll_period,
+        PipelineArgs.force,
+        PipelineArgs.name,
+        PipelineArgs.startup_delay,
+        PipelineArgs.timeout,
+        PipelineArgs.trees,
     ]
 
     def __call__(self, configs, args):
