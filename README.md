@@ -6,6 +6,21 @@ API](https://github.com/kernelci/kernelci-api).
 
 Please refer to the [API design documentation](https://docs.kernelci.org/maestro/api/design/) and [pipeline design documentation](https://docs.kernelci.org/maestro/pipeline/pipeline-details/) for more details.
 
+### Development checks
+
+Install the repository hooks after cloning:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+pre-commit install
+```
+
+Run the same lint and formatting checks as CI with:
+
+```bash
+pre-commit run --all-files
+```
+
 ### Setting up LAVA lab
 
 For scheduling jobs, the pipeline needs to be able to submit jobs to a "LAVA lab" type of runtime and receive HTTP(S) callbacks with results over "lava-callback" service.
@@ -57,4 +72,3 @@ PS D:\kernelci-pipeline> (Get-ChildItem -Recurse -Directory).FullName | ForEach-
 ```
 echo "KCIDB_REST=<your KCIDB REST API endpoint with token>" >> .env
 ```
-
