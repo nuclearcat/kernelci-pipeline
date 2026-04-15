@@ -5,3 +5,12 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: validate-yaml-config
+        name: Validate YAML config
+        entry: python3 tests/validate_yaml.py
+        language: system
+        files: ^config/
+        types: [yaml]
+        pass_filenames: false
