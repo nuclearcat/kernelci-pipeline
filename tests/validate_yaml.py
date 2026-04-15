@@ -328,6 +328,8 @@ def validate_yaml(merged_data):
     """
     print("Validating scheduler entries to jobs")
     validate_scheduler_jobs(merged_data)
+    print("Validating jobs")
+    validate_jobs(merged_data.get("jobs", {}))
     validate_unused_jobs(merged_data)
     validate_build_configs(merged_data)
     validate_unused_trees(merged_data)
